@@ -11,15 +11,16 @@ DB_USER = "postgres"
 DB_PASS = "rootpassword"
 
 START_SEED = 0
-TOTAL_SEEDS_TO_GENERATE = 1000
+TOTAL_SEEDS_TO_GENERATE = 200
 COMMIT_BATCH_SIZE = 100  # Commit to DB every X galaxies
 
+
+from profiler import prof
 
 
 def get_db_connection():
     conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
     return conn
-
 
 def create_schema(cursor):
     c = lambda *_: "" # Return an empty string. Used for comments in the long sql queries
@@ -92,12 +93,12 @@ def create_schema(cursor):
     index("planets", "gas_d")
 
 
-
+@prof.register
 def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
     """
         Generates one galaxy and inserts it, its stars, and its planets using 3 SQL queries.
     """
-
+    @prof.register
     def dict_to_sql(table, values, get_id=False):
         cols = ", ".join(values.keys())
         vals = tuple(values.values())
@@ -167,6 +168,7 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
 
             dict_to_sql("planets", vals)
 
+
 def main():
     conn = get_db_connection()
     cur = conn.cursor()
@@ -177,7 +179,6 @@ def main():
         conn.commit()  # Commit schema changes
 
         print(f"Starting generation of {TOTAL_SEEDS_TO_GENERATE} seeds...")
-        start_time = time.time()
 
         for i in range(TOTAL_SEEDS_TO_GENERATE):
             current_seed = START_SEED + i
@@ -188,14 +189,13 @@ def main():
             # Batch Commit
             if (i + 1) % COMMIT_BATCH_SIZE == 0:
                 conn.commit()
-                elapsed = time.time() - start_time
-                rate = (i + 1) / elapsed
-                print(f"Committed {i + 1} seeds. Rate: {rate:.2f} galaxies/sec")
+                print(f"Committed {i + 1} seeds.")
 
         # Final Commit
         conn.commit()
         print("Generation Complete.")
-
+        print(f"{'-' * 100}\nProfiling Results:\n")
+        prof.print_results()
     except Exception:
         print(f"An error occurred!")
         conn.rollback()
