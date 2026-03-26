@@ -131,6 +131,10 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
         star_id = dict_to_sql("stars", vals, get_id=True)
 
         for planet in solar_system["planets"]:
+            gas_dict = dict(planet["gases"])
+
+            # for gas_dict.get it says it only accepts str as keys, but int works as well
+            # noinspection PyTypeChecker
             vals = {
                 "star_id": star_id,
                 "index": planet["index"],
@@ -141,9 +145,10 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
                 "satellites": -1, #TODO implement
                 "temperature": planet["theme"]["temperature"],
                 "theme_id": planet["theme"]["id"],
-                "gas_h": -1,
-                "gas_d": -1, #todo implement these
-                "gas_i": -1
+                "gas_h": gas_dict.get(1120, 0.0),
+                "gas_d": gas_dict.get(1121, 0.0),
+                "gas_i": gas_dict.get(1011, 0.0),
+                "tidal_lock": planet["rotationPeriod"] == planet["orbitalPeriod"]
 
             }
             planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand intp a dictoinaty
@@ -160,7 +165,7 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
                     (dat["minPatch"] + dat["maxPatch"]) *
                     (dat["minAmount"] + dat["maxAmount"])) / 8
 
-            dict_to_sql("planets", vals) #todo implement tidal lock column
+            dict_to_sql("planets", vals)
 
 def main():
     conn = get_db_connection()
