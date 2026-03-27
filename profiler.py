@@ -1,4 +1,5 @@
 import time
+from contextlib import contextmanager
 from functools import wraps
 from typing import Callable, Any
 
@@ -31,7 +32,17 @@ class Profiler:
             func_calls[name] += 1
             return res
         return wrapper
-
+    @contextmanager
+    def inspect(self, name):
+        if self.disabled: return
+        if name not in self.func_names:
+            self.func_names.append(name)
+            self.func_times[name] = 0
+            self.func_calls[name] = 0
+        start = time.perf_counter()
+        yield # Execute statement
+        self.func_times[name] += time.perf_counter() - start
+        self.func_calls[name] += 1
     def print_results(self, ignore_smalls=False) -> None:
         if self.disabled: return
         total_time = sum(self.func_times.values())
@@ -57,4 +68,6 @@ class Profiler:
             print("-" * 50)
     def disable(self):
         self.disabled = True
+
+
 prof = Profiler()
