@@ -11,8 +11,8 @@ DB_USER = "postgres"
 DB_PASS = "rootpassword"
 
 START_SEED = 0
-TOTAL_SEEDS_TO_GENERATE = 1000
-COMMIT_BATCH_SIZE = 100  # Commit to DB every X galaxies
+TOTAL_SEEDS_TO_GENERATE = 100
+COMMIT_BATCH_SIZE = 50  # Commit to DB every X galaxies
 
 
 from profiler import prof
@@ -107,8 +107,6 @@ class BulkInserter:
         self.cur_pagesize += 1
         with self.buf_mutex:
             self.writer.writerow(rows_formatted)
-
-            # Start autocommit if necessary
         if 0 < self.commit_at <= self.cur_pagesize:
             self.commit()
 
@@ -124,9 +122,9 @@ class BulkInserter:
         self.cur_pagesize = 0
         local_conn, local_cur = get_db_connection()
         try:
+            sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
             with self.buf_mutex:
                 self.buf.seek(0)
-                sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
                 local_cur.copy_expert(sql, self.buf)
                 self.buf.truncate(0)
                 self.buf.seek(0)
@@ -153,8 +151,10 @@ planet_inserter = BulkInserter("planets", prows)
 srows = ["id", "seed", "start_dist", "star_index", "luminosity", "dyson_radius", "type", "spectr"] + ["ore_" + x for x in veins]
 star_inserter = BulkInserter("stars", srows)
 
+VEIN_TITLES = [ore.title() for ore in veins]
+
 @prof.register # Profiler
-def process_galaxy(seed, star_count=64, resource_mult=1):
+def process_galaxy(seed: int, star_count=64, resource_mult=1):
 
     with prof.inspect("generate"):
         galaxy_data = dsp_generator.generate(seed, star_count, resource_mult) # Rust module
@@ -162,10 +162,12 @@ def process_galaxy(seed, star_count=64, resource_mult=1):
     for solar_system in galaxy_data:
         star = solar_system["star"]
 
-        star_id = int(str(seed) + str(star["index"]).zfill(2)) # The seed followed by the index padded to two digits. Guaranteed to be unique for non-negative seeds and indexes up to 99 (max is 64)
+        star_id = seed * 100 + star["index"]
 
         vals = [star_id, seed, distance(star["position"]), star["index"], star["luminosity"], star["dysonRadius"], StarType.get(star["type"]), SpectrType.get(star["spectr"])]
-        vals += [int(solar_system["avg_veins"][ore.title()]) for ore in veins]
+
+        avg_veins = solar_system["avg_veins"]
+        vals += [int(avg_veins.get(title)) for title in VEIN_TITLES]
 
         star_inserter.add_row(vals)
         del vals # Free up memory, the same variable name is used at multiple places
@@ -175,38 +177,38 @@ def process_galaxy(seed, star_count=64, resource_mult=1):
 
             # for gas_dict.get it says it only accepts str as keys, but int works as well
             # noinspection PyTypeChecker
-            vals = {
-                "star_id": star_id,
-                "index": planet["index"],
-                "water_item": planet["theme"]["waterItemId"],
-                "gas_giant": planet["type"] == "Gas",
-                "sun_distance": planet["orbitRadius"],
-                "inside_ds": planet["orbitRadius"] * 40_000 < star["dysonRadius"],
-                "satellite": -1, #todo satellites, implement
-                "temperature": planet["theme"]["temperature"],
-                "theme_id": planet["theme"]["id"],
-                "gas_h": gas_dict.get(1120, 0.0),
-                "gas_d": gas_dict.get(1121, 0.0),
-                "gas_i": gas_dict.get(1011, 0.0),
-                "tidal_lock": planet["rotationPeriod"] == planet["orbitalPeriod"]
-            }
-            planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand into a dictoinary
+            p_vals = [
+                star_id,
+                planet["index"],
+                planet["theme"]["waterItemId"],
+                planet["type"] == "Gas",
+                planet["orbitRadius"],
+                planet["orbitRadius"] * 40_000 < star["dysonRadius"],
+                -1,  # todo satellites, implement
+                planet["theme"]["temperature"],
+                planet["theme"]["id"],
+                gas_dict.get(1120, 0.0),
+                gas_dict.get(1121, 0.0),
+                gas_dict.get(1011, 0.0),
+                planet["rotationPeriod"] == planet["orbitalPeriod"]
+            ]
+            if planet["type"] == "Gas":
+                p_vals.extend([-1] * 42) # 3 for each ore (14 ores)
+                planet_inserter.add_row(p_vals)
+                continue
+            planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand into a dictionary
             for ore in veins:
-
                 dat = planet_veins.get(ore, None)
-
-                if planet["type"] == "Gas" or dat is None:
-                    vals[f"min_{ore}"], vals[f"max_{ore}"], vals[f"estimate_{ore}"] = -1, -1, -1
-                    break
-                vals[f"min_{ore}"] = int(dat["minGroup"] * dat["minPatch"] * dat["minAmount"])
-                vals[f"max_{ore}"] = int(dat["maxGroup"] * dat["maxPatch"] * dat["maxAmount"])
-                vals[f"estimate_{ore}"] = int(((dat["minGroup"] + dat["maxGroup"]) *
-                    (dat["minPatch"] + dat["maxPatch"]) *
-                    (dat["minAmount"] + dat["maxAmount"])) / 8)
+                if dat is None: p_vals.extend([-1, -1, -1])
+                else:
+                    p_vals.append(int(dat["minGroup"] * dat["minPatch"] * dat["minAmount"]))
+                    p_vals.append(int(dat["maxGroup"] * dat["maxPatch"] * dat["maxAmount"]))
+                    p_vals.append(int(((dat["minGroup"] + dat["maxGroup"]) *
+                                       (dat["minPatch"] + dat["maxPatch"]) *
+                                       (dat["minAmount"] + dat["maxAmount"])) // 8))
 
 
-            planet_inserter.add_row([vals.get(row) for row in prows])
-            del vals # Not sure if the gc deletes it here
+            planet_inserter.add_row(p_vals)
 
 
 def main():
