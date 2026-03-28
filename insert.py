@@ -34,7 +34,7 @@ def create_schema(cursor):
     # 3. Create star table
     cursor.execute(f"""
         CREATE TABLE stars (
-            id SERIAL UNIQUE PRIMARY KEY,
+            id INT UNIQUE PRIMARY KEY,
             seed INT,
             
             start_dist FLOAT,
@@ -50,7 +50,7 @@ def create_schema(cursor):
     """)
     cursor.execute(f"""
         CREATE TABLE planets (
-            star_id SERIAL,
+            star_id INT,
             
             index INT,
             orbiting INT, {c("Index of gas giant, -1 if orbit around sun")}
@@ -103,7 +103,7 @@ class BulkInserter:
     @prof.register
     def add_row(self, values):
         self.cur_pagesize += 1
-        rows_formatted = ['t' if val is True else ('f' if val is False else ('nul' if val is None else str(val))) for val in values]
+        rows_formatted = ['t' if val is True else ('f' if val is False else ('n' if val is None else str(val))) for val in values] # no arbitrary strings, so a short null string just saves resources
         with self.buf_mutex:
             self.writer.writerow(rows_formatted)
 
@@ -124,7 +124,7 @@ class BulkInserter:
                 self.buf.seek(0)
                 data = self.buf.read().replace("\x00", "")
                 self.buf.truncate(0)
-            sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'nul')"
+            sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
             local_cur.copy_expert(sql, io.StringIO(data))
             local_conn.commit()
 
@@ -149,19 +149,11 @@ prows += ["min_" + x for x in veins] + \
          ["estimate_" + x for x in veins]
 
 planet_inserter = BulkInserter("planets", prows)
+srows = ["id", "seed", "start_dist", "star_index", "luminosity", "dyson_radius", "type", "spectr"] + ["ore_" + x for x in veins]
+star_inserter = BulkInserter("stars", srows)
+
 @prof.register # Profiler
-def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
-    """
-        Generates one galaxy and inserts it, its stars, and its planets using 3 SQL queries.
-    """
-    @prof.register
-    def insert_star(values):
-        cols = ", ".join(values.keys())
-        vals = tuple(values.values())
-        placeholders = ", ".join(["%s"] * len(vals))
-        query = f"INSERT INTO stars ({cols}) VALUES ({placeholders}) RETURNING id"
-        cursor.execute(query, vals)
-        return cursor.fetchone()[0]
+def process_galaxy(seed, star_count=64, resource_mult=1):
 
 
 
@@ -173,20 +165,14 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
 
     for solar_system in galaxy_data:
         star = solar_system["star"]
-        vals = {
-            "seed": seed, #todo implement distance from spectr
 
-            "start_dist": distance(star["position"]),
-            "star_index": star["index"],
-            "luminosity": star["luminosity"],
-            "dyson_radius": star["dysonRadius"],
-            "type": StarType.get(star["type"]),
-            "spectr": SpectrType.get(star["spectr"])
-        }
-        for ore in veins:
-            vals[f"ore_{ore}"] = solar_system["avg_veins"][ore.title()]
+        star_id = int(str(seed) + str(star["index"]).zfill(2)) # The seed followed by the index padded to two digits. Guaranteed to be unique for non-negative seeds and indexes up to 99 (max is 64)
 
-        star_id = insert_star(vals)
+        vals = [star_id, seed, distance(star["position"]), star["index"], star["luminosity"], star["dysonRadius"], StarType.get(star["type"]), SpectrType.get(star["spectr"])]
+        vals += [int(solar_system["avg_veins"][ore.title()]) for ore in veins]
+
+        star_inserter.add_row(vals)
+        del vals # Free up memory, the same variable name is used at multiple places
 
         for planet in solar_system["planets"]:
             gas_dict = dict(planet["gases"])
@@ -209,6 +195,7 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
                 "tidal_lock": planet["rotationPeriod"] == planet["orbitalPeriod"]
 
             }
+
             planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand into a dictoinary
             for ore in veins:
 
@@ -224,6 +211,7 @@ def process_galaxy(cursor, seed, star_count=64, resource_mult=1):
                     (dat["minAmount"] + dat["maxAmount"])) / 8)
 
             planet_inserter.add_row([vals.get(row) for row in prows])
+            del vals # Not sure if the gc deletes it here
 
 
 def main():
@@ -237,12 +225,13 @@ def main():
         print(f"Starting generation of {TOTAL_SEEDS_TO_GENERATE} seeds...")
 
         planet_inserter.autocommit(cur)
+        star_inserter.autocommit(cur)
 
         for i in range(TOTAL_SEEDS_TO_GENERATE):
             current_seed = START_SEED + i
 
             # Process one galaxy
-            process_galaxy(cur, current_seed)
+            process_galaxy(current_seed)
 
             # Batch Commit
             if (i + 1) % COMMIT_BATCH_SIZE == 0:
@@ -260,6 +249,7 @@ def main():
         raise
     finally:
         planet_inserter.commit()
+        star_inserter.commit()
         cur.close()
         conn.close()
 
