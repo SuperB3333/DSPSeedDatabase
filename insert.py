@@ -102,14 +102,15 @@ class BulkInserter:
         self.buf_mutex = threading.Lock()
     @prof.register
     def add_row(self, values):
-        self.cur_pagesize += 1
         rows_formatted = ['t' if val is True else ('f' if val is False else ('n' if val is None else str(val))) for val in values] # no arbitrary strings, so a short null string just saves resources
         with self.buf_mutex:
+            self.cur_pagesize += 1
             self.writer.writerow(rows_formatted)
 
-        # Start autocommit if necessary
-        if self.auto_cur is not None and self.cur_pagesize >= self.commit_at:
-            self.commit()
+            # Start autocommit if necessary
+            if self.auto_cur is not None and self.cur_pagesize >= self.commit_at:
+                self.cur_pagesize = 0
+                self.commit()
     def autocommit(self, cur: psycopg2._psycopg.cursor, max_page=COMMIT_BATCH_SIZE):
         self.commit_at = max_page
         self.auto_cur = cur
@@ -117,13 +118,13 @@ class BulkInserter:
         self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
         self.commit_thread.start()
     def _thread_commit(self):
-        self.cur_pagesize = 0
         local_conn, local_cur = get_db_connection()
         try:
             with self.buf_mutex:
                 self.buf.seek(0)
-                data = self.buf.read().replace("\x00", "")
+                data = self.buf.read()
                 self.buf.truncate(0)
+                self.buf.seek(0)
             sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
             local_cur.copy_expert(sql, io.StringIO(data))
             local_conn.commit()
