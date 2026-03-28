@@ -11,8 +11,8 @@ DB_USER = "postgres"
 DB_PASS = "rootpassword"
 
 START_SEED = 0
-TOTAL_SEEDS_TO_GENERATE = 100
-COMMIT_BATCH_SIZE = 50  # Commit to DB every X galaxies
+TOTAL_SEEDS_TO_GENERATE = 1000
+COMMIT_BATCH_SIZE = 100  # Commit to DB every X galaxies
 
 
 from profiler import prof
@@ -98,36 +98,39 @@ class BulkInserter:
         self.cols = columns
         self.table = table
         self.commit_at, self.auto_cur, self.cur_pagesize = 0, None, 0
-        self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
+        self.commit_thread = None
         self.buf_mutex = threading.Lock()
+
     @prof.register
     def add_row(self, values):
+        rows_formatted = ['t' if val is True else ('f' if val is False else ('n' if val is None else str(val))) for val in values]  # no arbitrary strings, so a short null string just saves resources
         self.cur_pagesize += 1
-        rows_formatted = ['t' if val is True else ('f' if val is False else ('n' if val is None else str(val))) for val in values] # no arbitrary strings, so a short null string just saves resources
         with self.buf_mutex:
             self.writer.writerow(rows_formatted)
 
-        # Start autocommit if necessary
-        if self.auto_cur is not None and self.cur_pagesize >= self.commit_at:
+            # Start autocommit if necessary
+        if 0 < self.commit_at <= self.cur_pagesize:
             self.commit()
+
     def autocommit(self, cur: psycopg2._psycopg.cursor, max_page=COMMIT_BATCH_SIZE):
         self.commit_at = max_page
         self.auto_cur = cur
+
     def commit(self):
         self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
         self.commit_thread.start()
+
     def _thread_commit(self):
         self.cur_pagesize = 0
         local_conn, local_cur = get_db_connection()
         try:
             with self.buf_mutex:
                 self.buf.seek(0)
-                data = self.buf.read().replace("\x00", "")
+                sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
+                local_cur.copy_expert(sql, self.buf)
                 self.buf.truncate(0)
-            sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
-            local_cur.copy_expert(sql, io.StringIO(data))
+                self.buf.seek(0)
             local_conn.commit()
-
         finally:
             local_cur.close(); local_conn.close()
 
@@ -144,9 +147,7 @@ prows = [
     "gas_h", "gas_d", "gas_i",
     "tidal_lock"
 ]
-prows += ["min_" + x for x in veins] + \
-         ["max_" + x for x in veins] + \
-         ["estimate_" + x for x in veins]
+[prows.extend(["min_" + x, "max_" + x, "estimate_" + x]) for x in veins]
 
 planet_inserter = BulkInserter("planets", prows)
 srows = ["id", "seed", "start_dist", "star_index", "luminosity", "dyson_radius", "type", "spectr"] + ["ore_" + x for x in veins]
@@ -155,13 +156,8 @@ star_inserter = BulkInserter("stars", srows)
 @prof.register # Profiler
 def process_galaxy(seed, star_count=64, resource_mult=1):
 
-
-
-    # 1. Generate Data (Rust)
-    # The result is a list of star dictionaries
     with prof.inspect("generate"):
-        galaxy_data = dsp_generator.generate(seed, star_count, resource_mult)
-
+        galaxy_data = dsp_generator.generate(seed, star_count, resource_mult) # Rust module
 
     for solar_system in galaxy_data:
         star = solar_system["star"]
@@ -186,16 +182,14 @@ def process_galaxy(seed, star_count=64, resource_mult=1):
                 "gas_giant": planet["type"] == "Gas",
                 "sun_distance": planet["orbitRadius"],
                 "inside_ds": planet["orbitRadius"] * 40_000 < star["dysonRadius"],
-                "satellites": -1, #TODO implement
+                "satellite": -1, #todo satellites, implement
                 "temperature": planet["theme"]["temperature"],
                 "theme_id": planet["theme"]["id"],
                 "gas_h": gas_dict.get(1120, 0.0),
                 "gas_d": gas_dict.get(1121, 0.0),
                 "gas_i": gas_dict.get(1011, 0.0),
                 "tidal_lock": planet["rotationPeriod"] == planet["orbitalPeriod"]
-
             }
-
             planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand into a dictoinary
             for ore in veins:
 
@@ -209,6 +203,7 @@ def process_galaxy(seed, star_count=64, resource_mult=1):
                 vals[f"estimate_{ore}"] = int(((dat["minGroup"] + dat["maxGroup"]) *
                     (dat["minPatch"] + dat["maxPatch"]) *
                     (dat["minAmount"] + dat["maxAmount"])) / 8)
+
 
             planet_inserter.add_row([vals.get(row) for row in prows])
             del vals # Not sure if the gc deletes it here
