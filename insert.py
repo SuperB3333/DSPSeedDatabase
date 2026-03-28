@@ -22,7 +22,9 @@ def get_db_connection():
     conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
     return conn, conn.cursor()
 
-def create_schema(cursor):
+def create_schema():
+    conn, cursor = get_db_connection()
+
     c = lambda *_: "" # Return an empty string. Used for comments in the long sql queries
     print("--- Recreating Database Schema ---")
 
@@ -91,15 +93,19 @@ def create_schema(cursor):
     index("planets", "gas_giant")
     index("planets", "temperature")
 
+    conn.commit()
+
 class BulkInserter:
-    def __init__(self, table: str, columns: list[str]):
+    def __init__(self, table: str, columns: list[str], autocommit=COMMIT_BATCH_SIZE):
         self.buf = io.StringIO()
         self.writer = csv.writer(self.buf)
         self.cols = columns
         self.table = table
-        self.commit_at, self.auto_cur, self.cur_pagesize = 0, None, 0
+        self.auto_cur, self.cur_pagesize = None, 0
         self.commit_thread = None
         self.buf_mutex = threading.Lock()
+
+        self.commit_at = autocommit if autocommit else -1
 
     @prof.register
     def add_row(self, values):
@@ -109,10 +115,6 @@ class BulkInserter:
             self.writer.writerow(rows_formatted)
         if 0 < self.commit_at <= self.cur_pagesize:
             self.commit()
-
-    def autocommit(self, cur: psycopg2._psycopg.cursor, max_page=COMMIT_BATCH_SIZE):
-        self.commit_at = max_page
-        self.auto_cur = cur
 
     def commit(self):
         self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
@@ -212,43 +214,21 @@ def process_galaxy(seed: int, star_count=64, resource_mult=1):
 
 
 def main():
-    conn, cur = get_db_connection()
+    # Create Schema
+    create_schema()
 
     try:
-        # Create Schema
-        create_schema(cur)
-        conn.commit()  # Commit schema changes
-
         print(f"Starting generation of {TOTAL_SEEDS_TO_GENERATE} seeds...")
 
-        planet_inserter.autocommit(cur)
-        star_inserter.autocommit(cur)
-
-        for i in range(TOTAL_SEEDS_TO_GENERATE):
-            current_seed = START_SEED + i
-
-            # Process one galaxy
+        for current_seed in range(START_SEED, START_SEED + TOTAL_SEEDS_TO_GENERATE):
             process_galaxy(current_seed)
 
-            # Batch Commit
-            if (i + 1) % COMMIT_BATCH_SIZE == 0:
-                conn.commit()
-                print(f"Committed {i + 1} seeds.")
-
-        # Final Commit
-        conn.commit()
         print("Generation Complete.")
         print(f"{'-' * 100}\nProfiling Results:\n")
         prof.print_results()
-    except Exception:
-        print(f"An error occurred!")
-        conn.rollback()
-        raise
     finally:
         planet_inserter.commit()
         star_inserter.commit()
-        cur.close()
-        conn.close()
 
 
 if __name__ == "__main__":
