@@ -1,4 +1,4 @@
-import psycopg2, io, csv, threading
+import psycopg2, io, csv, threading, time
 
 from misc import distance, StarType, SpectrType, veins
 
@@ -219,13 +219,15 @@ def main():
 
     try:
         print(f"Starting generation of {TOTAL_SEEDS_TO_GENERATE} seeds...")
-
+        start = time.perf_counter()
         for current_seed in range(START_SEED, START_SEED + TOTAL_SEEDS_TO_GENERATE):
             process_galaxy(current_seed)
-
+        elapsed = time.perf_counter() - start
         print("Generation Complete.")
         print(f"{'-' * 100}\nProfiling Results:\n")
         prof.print_results()
+        print(f"{TOTAL_SEEDS_TO_GENERATE/elapsed:.2f} seeds/sec")
+
     finally:
         planet_inserter.commit()
         star_inserter.commit()
