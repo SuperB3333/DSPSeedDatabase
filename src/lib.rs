@@ -83,23 +83,25 @@ mod dsp_generator {
                     (planet.get_rotation_period() == planet.get_orbital_period())           .into_bound_py_any(py)?,
                 ];
                 let veins = planet.get_veins();
-                let full_planet: Vec<&Bound<'_, PyAny>> = planet_line
-                    .iter()
-                    .chain(if planet.get_type() == &PlanetType::Gas {
-                        repeat_n(&PyFloat::new(py, -1.0).into_bound_py_any(py)?, 42).into_iter()
-                    }
-                    else {
-                        ORES
-                            .iter()
-                            .flat_map(|ore|{
-                                for vein in veins {
-                                    
-                                }
-                            })
-                            .into_iter()
-                        //repeat_n(&3.0.into_bound_py_any(py)?, 42)
+
+                if planet.get_type() == &PlanetType::Gas {
+                    let full_planet: Vec<&Bound<'_, PyAny>> = planet_line.iter().chain(repeat_n(&0.into_bound_py_any(py)?, 42)).collect();
+                    planets.push(full_planet);
+                    continue;
+                }
+                let full_planet: Vec<&Bound<'_, PyAny>> = planet_line.iter().chain(
+                    ORES.iter().flat_map(|ore| {
+                        for vein in veins {
+                            if &vein.vein_type == ore {
+                                let min = vein.clone().min().into_bound_py_any(py).unwrap();
+                                let max = vein.clone().max().into_bound_py_any(py).unwrap();
+                                let est = vein.clone().estimate().into_bound_py_any(py).unwrap();
+                                return [min, max, est].iter()
+                            }
+                        }
+                        return [].iter()
                     })
-                    .collect();
+                ).collect();
                 planets.push(full_planet);
             }
 
