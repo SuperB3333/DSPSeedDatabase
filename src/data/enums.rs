@@ -16,7 +16,17 @@ impl Default for StarType {
         Self::MainSeqStar
     }
 }
-
+impl StarType {
+    pub fn to_num(self) -> i32 {
+        match self {
+            StarType::MainSeqStar => 1,
+            StarType::GiantStar => 2,
+            StarType::WhiteDwarf => 3,
+            StarType::NeutronStar => 4,
+            StarType::BlackHole => 5
+        }
+    }
+}
 #[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Deserialize, Serialize)]
@@ -106,3 +116,10 @@ impl VeinType {
         }
     }
 }
+
+pub const ORES: [VeinType; 16] = [
+    VeinType::None, VeinType::Iron, VeinType::Copper, VeinType::Silicium,
+    VeinType::Titanium, VeinType::Stone, VeinType::Coal, VeinType::Oil,
+    VeinType::Fireice, VeinType::Diamond, VeinType::Fractal, VeinType::Crysrub,
+    VeinType::Grat, VeinType::Bamboo, VeinType::Mag, VeinType::Max,
+];
