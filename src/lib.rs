@@ -1,12 +1,9 @@
 mod data;
 mod worldgen;
 
-use serde::{Deserialize, Serialize};
 use pyo3::prelude::*;
 #[pymodule]
 mod dsp_generator {
-    use std::iter::repeat_n;
-    use std::ops::Deref;
     use pyo3::{IntoPyObjectExt};
     use pyo3::types::*;
     use pyo3::exceptions::*;
@@ -30,7 +27,7 @@ mod dsp_generator {
         })?.into_py_any(py)
     }
     #[pyfunction]
-    fn generate_formatted(py: Python, seed: i32) -> PyResult<Bound<'_, PyTuple>> {
+    fn generate_formatted(py: Python<'_>, seed: i32) -> PyResult<Bound<'_, PyTuple>> {
         let mut game_desc: GameDesc = GameDesc::default();
         game_desc.seed = seed;
         let galaxy = create_galaxy(&game_desc);
@@ -41,16 +38,21 @@ mod dsp_generator {
             let star = solar_system.star.clone();
             let star_id = star.index as i32 + seed * 100;
 
-            let star_line = (
-                star_id,
-                seed,
-                star.position.magnitude(),
-                star.index,
-                star.get_luminosity(),
-                star.get_dyson_radius(),
-                star.star_type.clone() as i32 + 1,
-                star.get_spectr().clone() as i32
-            );
+            let mut star_line = vec![
+                star_id                               .into_bound_py_any(py)?,
+                seed                                  .into_bound_py_any(py)?,
+                star.position.magnitude()             .into_bound_py_any(py)?,
+                star.index                            .into_bound_py_any(py)?,
+                star.get_luminosity()                 .into_bound_py_any(py)?,
+                star.get_dyson_radius()               .into_bound_py_any(py)?,
+                (star.star_type.clone() as i32 + 1)   .into_bound_py_any(py)?,
+                (star.get_spectr().clone() as i32)    .into_bound_py_any(py)?,
+            ];
+
+            for ore in &ORES[1..15] {
+                star_line.push(solar_system.get_avg_vein(ore).into_bound_py_any(py)?);
+            }
+
             stars.push(star_line);
 
             for planet in solar_system.get_planets() {
@@ -83,25 +85,31 @@ mod dsp_generator {
                     (planet.get_rotation_period() == planet.get_orbital_period())           .into_bound_py_any(py)?,
                 ];
                 let veins = planet.get_veins();
+                let mut full_planet = planet_line;
 
                 if planet.get_type() == &PlanetType::Gas {
-                    let full_planet: Vec<&Bound<'_, PyAny>> = planet_line.iter().chain(repeat_n(&0.into_bound_py_any(py)?, 42)).collect();
-                    planets.push(full_planet);
-                    continue;
-                }
-                let full_planet: Vec<&Bound<'_, PyAny>> = planet_line.iter().chain(
-                    ORES.iter().flat_map(|ore| {
+                    for _ in 0..42 {
+                        full_planet.push((-1).into_bound_py_any(py)?);
+                    }
+                } else {
+                    for ore in &ORES[1..15] {
+                        let mut found = false;
                         for vein in veins {
                             if &vein.vein_type == ore {
-                                let min = vein.clone().min().into_bound_py_any(py).unwrap();
-                                let max = vein.clone().max().into_bound_py_any(py).unwrap();
-                                let est = vein.clone().estimate().into_bound_py_any(py).unwrap();
-                                return [min, max, est].iter()
+                                full_planet.push(vein.min().into_bound_py_any(py)?);
+                                full_planet.push(vein.max().into_bound_py_any(py)?);
+                                full_planet.push(vein.estimate().into_bound_py_any(py)?);
+                                found = true;
+                                break;
                             }
                         }
-                        return [].iter()
-                    })
-                ).collect();
+                        if !found {
+                            for _ in 0..3 {
+                                full_planet.push((-1).into_bound_py_any(py)?);
+                            }
+                        }
+                    }
+                }
                 planets.push(full_planet);
             }
 
