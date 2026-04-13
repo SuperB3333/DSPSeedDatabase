@@ -31,4 +31,15 @@ impl Vein {
     pub fn new() -> Self {
         Default::default()
     }
+    pub fn min(&self) -> i32 {
+        self.min_group * self.min_amount * self.min_patch
+    }
+    pub fn max(&self) -> i32 {
+        self.max_group * self.max_amount * self.max_patch
+    }
+    pub fn estimate(&self) -> i32 {
+        (self.min_group + self.max_group) *
+        (self.min_amount + self.max_amount) *
+        (self.min_patch + self.max_patch) / 8
+    }
 }

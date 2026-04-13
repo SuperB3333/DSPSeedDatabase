@@ -196,7 +196,7 @@ def process_galaxy(seed: int, star_count=64, resource_mult=1):
             ]
             if planet["type"] == "Gas":
                 p_vals.extend([-1] * 42) # 3 for each ore (14 ores)
-                planet_inserter.add_row(p_vals)
+                planet_inserter.add_row(p_vals) # end early. this should be replaced with planets.push in rust
                 continue
             planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand into a dictionary
             for ore in veins:
