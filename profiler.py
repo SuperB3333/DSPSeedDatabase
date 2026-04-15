@@ -34,7 +34,9 @@ class Profiler:
         return wrapper
     @contextmanager
     def inspect(self, name):
-        if self.disabled: return
+        if self.disabled:
+            yield
+            return
         if name not in self.func_names:
             self.func_names.append(name)
             self.func_times[name] = 0
