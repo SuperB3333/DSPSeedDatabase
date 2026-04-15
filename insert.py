@@ -1,4 +1,4 @@
-from typing import Iterable
+from typing import Iterable, Any
 
 import psycopg2, io, csv, threading, time
 
@@ -97,6 +97,12 @@ def create_schema():
 
     conn.commit()
 
+def format_tfn(x: Any) -> str:
+    if x is True: return 't'
+    if x is False: return 'f'
+    if x is None: return 'n'
+    return str(x)
+
 class BulkInserter:
     def __init__(self, table: str, columns: list[str], autocommit=COMMIT_BATCH_SIZE):
         self.buf = io.StringIO()
@@ -110,31 +116,37 @@ class BulkInserter:
         self.commit_at = autocommit if autocommit else -1
 
     @prof.register
-    def add_row(self, values):
-        rows_formatted = ['t' if val is True else ('f' if val is False else ('n' if val is None else str(val))) for val in values]  # no arbitrary strings, so a short null string just saves resources
-        self.cur_pagesize += 1
+    def add_many(self, i: Iterable):
+        if not i: return
+        batch = list(map(lambda obj: map(format_tfn, obj), i))
+
         with self.buf_mutex:
-            self.writer.writerow(rows_formatted)
+            for row in batch:
+                self.writer.writerow(row)
+            self.cur_pagesize += len(batch)
+
         if 0 < self.commit_at <= self.cur_pagesize:
             self.commit()
-    @prof.register
-    def add_many(self, i: Iterable):
-        for obj in i:
-            self.add_row(obj)
     def commit(self):
         self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
         self.commit_thread.start()
 
     def _thread_commit(self):
-        self.cur_pagesize = 0
+        old_buf = None
+        with self.buf_mutex:
+            old_buf = self.buf
+            self.buf = io.StringIO()
+            self.writer = csv.writer(self.buf)
+            self.cur_pagesize = 0
+
+        if old_buf is None:
+            return
         local_conn, local_cur = get_db_connection()
         try:
-            sql = f"COPY {self.table} ({", ".join(self.cols)}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
-            with self.buf_mutex:
-                self.buf.seek(0)
-                local_cur.copy_expert(sql, self.buf)
-                self.buf.truncate(0)
-                self.buf.seek(0)
+            columns_str = ", ".join(self.cols)
+            sql = f"COPY {self.table} ({columns_str}) FROM STDIN WITH (FORMAT csv, NULL 'n')"
+            old_buf.seek(0)
+            local_cur.copy_expert(sql, old_buf)
             local_conn.commit()
         finally:
             local_cur.close(); local_conn.close()
