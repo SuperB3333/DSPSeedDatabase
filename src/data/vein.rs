@@ -1,5 +1,5 @@
 use super::enums::VeinType;
-use serde::Serialize;
+use serde::{Serialize, Serializer};
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]
@@ -37,9 +37,9 @@ impl Vein {
     pub fn max(&self) -> i32 {
         self.max_group * self.max_amount * self.max_patch
     }
-    pub fn estimate(&self) -> i32 {
-        (self.min_group + self.max_group) *
-        (self.min_amount + self.max_amount) *
-        (self.min_patch + self.max_patch) / 8
+    pub fn estimate(&self) -> i64 {
+        (self.min_group + self.max_group) as i64 *
+        (self.min_amount + self.max_amount) as i64 *
+        (self.min_patch + self.max_patch) as i64 / 8i64
     }
 }

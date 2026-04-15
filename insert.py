@@ -1,8 +1,11 @@
+from typing import Iterable
+
 import psycopg2, io, csv, threading, time
 
-from misc import distance, StarType, SpectrType, veins
+from misc import SpectrType, veins
 
 import dsp_generator # Rust Extention
+from profiler import prof
 
 # --- CONFIGURATION ---
 DB_HOST = "localhost"
@@ -15,7 +18,6 @@ TOTAL_SEEDS_TO_GENERATE = 100
 COMMIT_BATCH_SIZE = 50  # Commit to DB every X galaxies
 
 
-from profiler import prof
 
 
 def get_db_connection():
@@ -115,7 +117,10 @@ class BulkInserter:
             self.writer.writerow(rows_formatted)
         if 0 < self.commit_at <= self.cur_pagesize:
             self.commit()
-
+    @prof.register
+    def add_many(self, i: Iterable):
+        for obj in i:
+            self.add_row(obj)
     def commit(self):
         self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
         self.commit_thread.start()
@@ -153,64 +158,14 @@ planet_inserter = BulkInserter("planets", prows)
 srows = ["id", "seed", "start_dist", "star_index", "luminosity", "dyson_radius", "type", "spectr"] + ["ore_" + x for x in veins]
 star_inserter = BulkInserter("stars", srows)
 
-VEIN_TITLES = [ore.title() for ore in veins]
-
 @prof.register # Profiler
 def process_galaxy(seed: int, star_count=64, resource_mult=1):
 
     with prof.inspect("generate"):
-        galaxy_data = dsp_generator.generate(seed, star_count, resource_mult) # Rust module
+        stars, planets = dsp_generator.generate_formatted(seed, star_count, resource_mult)
 
-    for solar_system in galaxy_data:
-        star = solar_system["star"]
-
-        star_id = seed * 100 + star["index"]
-
-        vals = [star_id, seed, distance(star["position"]), star["index"], star["luminosity"], star["dysonRadius"], StarType.get(star["type"]), SpectrType.get(star["spectr"])]
-
-        avg_veins = solar_system["avg_veins"]
-        vals += [int(avg_veins.get(title)) for title in VEIN_TITLES]
-
-        star_inserter.add_row(vals)
-        del vals # Free up memory, the same variable name is used at multiple places
-
-        for planet in solar_system["planets"]:
-            gas_dict = dict(planet["gases"])
-
-            # for gas_dict.get it says it only accepts str as keys, but int works as well
-            # noinspection PyTypeChecker
-            p_vals = [
-                star_id,
-                planet["index"],
-                planet["theme"]["waterItemId"],
-                planet["type"] == "Gas",
-                planet["orbitRadius"],
-                planet["orbitRadius"] * 40_000 < star["dysonRadius"],
-                -1,  # todo satellites, implement
-                planet["theme"]["temperature"],
-                planet["theme"]["id"],
-                gas_dict.get(1120, 0.0),
-                gas_dict.get(1121, 0.0),
-                gas_dict.get(1011, 0.0),
-                planet["rotationPeriod"] == planet["orbitalPeriod"]
-            ]
-            if planet["type"] == "Gas":
-                p_vals.extend([-1] * 42) # 3 for each ore (14 ores)
-                planet_inserter.add_row(p_vals) # end early. this should be replaced with planets.push in rust
-                continue
-            planet_veins = {v_est["veinType"].lower(): {k: v for k, v in v_est.items() if k != "veinType"} for v_est in planet["veins"]} # Expand into a dictionary
-            for ore in veins:
-                dat = planet_veins.get(ore, None)
-                if dat is None: p_vals.extend([-1, -1, -1])
-                else:
-                    p_vals.append(int(dat["minGroup"] * dat["minPatch"] * dat["minAmount"]))
-                    p_vals.append(int(dat["maxGroup"] * dat["maxPatch"] * dat["maxAmount"]))
-                    p_vals.append(int(((dat["minGroup"] + dat["maxGroup"]) *
-                                       (dat["minPatch"] + dat["maxPatch"]) *
-                                       (dat["minAmount"] + dat["maxAmount"])) // 8))
-
-
-            planet_inserter.add_row(p_vals)
+    star_inserter.add_many(stars)
+    planet_inserter.add_many(planets)
 
 
 def main():
