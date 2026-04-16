@@ -1,3 +1,5 @@
+#![cfg(target_arch="python")]
+
 mod data;
 mod worldgen;
 

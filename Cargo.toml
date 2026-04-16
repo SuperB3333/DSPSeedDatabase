@@ -17,5 +17,11 @@ crate-type = ["cdylib"]
 [dependencies]
 once_cell = "1.19.0"
 serde = { version = "1.0.193", features = ["derive", "rc"] }
+
+
+[target.'cfg(not(target_arch = "wasm32"))'.dependencies]
+postgres =  { version = "0.19.13" }
+
+[target.'cfg(target_arch = "python")'.dependencies]
 pyo3 = { version = "0.28.2", features = ["full"]}
 pythonize = "0.28.0"

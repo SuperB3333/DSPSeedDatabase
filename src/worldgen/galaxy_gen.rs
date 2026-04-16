@@ -3,7 +3,6 @@ use crate::data::enums::{SpectrType, StarType};
 use crate::data::galaxy::Galaxy;
 use crate::data::game_desc::GameDesc;
 use crate::data::random::DspRandom;
-use crate::data::rule::{Evaluaton, Rule};
 use crate::data::star::Star;
 use crate::data::star_planets::StarWithPlanets;
 use crate::data::vector3::Vector3;
