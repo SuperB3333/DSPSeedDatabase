@@ -38,8 +38,9 @@ impl Vein {
         self.max_group * self.max_amount * self.max_patch
     }
     pub fn estimate(&self) -> i64 {
-        (self.min_group + self.max_group) as i64 *
-        (self.min_amount + self.max_amount) as i64 *
-        (self.min_patch + self.max_patch) as i64 / 8i64
+        (self.min_group + self.max_group) as i64
+            * (self.min_amount + self.max_amount) as i64
+            * (self.min_patch + self.max_patch) as i64
+            / 8i64
     }
 }

@@ -23,7 +23,7 @@ impl StarType {
             StarType::GiantStar => 2,
             StarType::WhiteDwarf => 3,
             StarType::NeutronStar => 4,
-            StarType::BlackHole => 5
+            StarType::BlackHole => 5,
         }
     }
 }
@@ -118,8 +118,20 @@ impl VeinType {
 }
 
 pub const ORES: [VeinType; 16] = [
-    VeinType::None, VeinType::Iron, VeinType::Copper, VeinType::Silicium,
-    VeinType::Titanium, VeinType::Stone, VeinType::Coal, VeinType::Oil,
-    VeinType::Fireice, VeinType::Diamond, VeinType::Fractal, VeinType::Crysrub,
-    VeinType::Grat, VeinType::Bamboo, VeinType::Mag, VeinType::Max,
+    VeinType::None,
+    VeinType::Iron,
+    VeinType::Copper,
+    VeinType::Silicium,
+    VeinType::Titanium,
+    VeinType::Stone,
+    VeinType::Coal,
+    VeinType::Oil,
+    VeinType::Fireice,
+    VeinType::Diamond,
+    VeinType::Fractal,
+    VeinType::Crysrub,
+    VeinType::Grat,
+    VeinType::Bamboo,
+    VeinType::Mag,
+    VeinType::Max,
 ];

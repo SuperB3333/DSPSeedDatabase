@@ -6,9 +6,8 @@ use super::enums::{SpectrType, StarType, VeinType};
 use super::planet::Planet;
 use super::random::DspRandom;
 use super::star::Star;
-use serde::{Serialize, Serializer};
 use serde::ser::SerializeStruct;
-
+use serde::{Serialize, Serializer};
 
 #[derive(Debug)]
 pub struct StarWithPlanets<'a> {
@@ -95,7 +94,23 @@ impl<'a> StarWithPlanets<'a> {
 
     fn all_avg_veins(&self) -> HashMap<VeinType, f32> {
         let mut results = HashMap::<VeinType, f32>::new();
-        let vts: Vec<VeinType> = vec![VeinType::Iron, VeinType::Copper, VeinType::Silicium, VeinType::Titanium, VeinType::Stone, VeinType::Coal, VeinType::Oil, VeinType::Fireice, VeinType::Diamond, VeinType::Fractal, VeinType::Crysrub, VeinType::Grat, VeinType::Bamboo, VeinType::Mag, VeinType::Max];
+        let vts: Vec<VeinType> = vec![
+            VeinType::Iron,
+            VeinType::Copper,
+            VeinType::Silicium,
+            VeinType::Titanium,
+            VeinType::Stone,
+            VeinType::Coal,
+            VeinType::Oil,
+            VeinType::Fireice,
+            VeinType::Diamond,
+            VeinType::Fractal,
+            VeinType::Crysrub,
+            VeinType::Grat,
+            VeinType::Bamboo,
+            VeinType::Mag,
+            VeinType::Max,
+        ];
         for vein_type in vts {
             results.insert(vein_type.clone(), self.get_avg_vein(&vein_type));
         }
@@ -384,16 +399,16 @@ impl<'a> StarWithPlanets<'a> {
 }
 impl<'a> Serialize for StarWithPlanets<'a> {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where S: Serializer,
+    where
+        S: Serializer,
     {
         let mut state = serializer.serialize_struct("StarWithPlanets", 7)?;
         state.serialize_field("star", &self.star)?;
-        state.serialize_field("planets", unsafe {&*self.planets.get()})?;
+        state.serialize_field("planets", unsafe { &*self.planets.get() })?;
         state.serialize_field("avg_veins", &self.all_avg_veins())?;
         state.serialize_field("name", &self.name)?;
 
         state.end()
-
     }
 }
 const P_GASES: [[f64; 6]; 10] = [

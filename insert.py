@@ -18,8 +18,6 @@ TOTAL_SEEDS_TO_GENERATE = 100
 COMMIT_BATCH_SIZE = 50  # Commit to DB every X galaxies
 
 
-
-
 def get_db_connection():
     conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
     return conn, conn.cursor()
@@ -102,7 +100,6 @@ def format_tfn(x: Any) -> str:
     if x is False: return 'f'
     if x is None: return 'n'
     return str(x)
-
 class BulkInserter:
     def __init__(self, table: str, columns: list[str], autocommit=COMMIT_BATCH_SIZE):
         self.buf = io.StringIO()
@@ -130,7 +127,6 @@ class BulkInserter:
     def commit(self):
         self.commit_thread = threading.Thread(daemon=True, target=self._thread_commit)
         self.commit_thread.start()
-
     def _thread_commit(self):
         old_buf = None
         with self.buf_mutex:
