@@ -28,8 +28,8 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
         write!(scopy, "{},", star.star_type.clone() as i32 + 1)?;
         write!(scopy, "{},", star.get_spectr().clone() as i32)?;
 
-        for ore in &ORES[1..15] {
-            write!(scopy, "{},", solar_system.get_avg_vein(ore) as i32)?;
+        for (index, ore) in ORES[1..15].iter().enumerate() {
+            write!(scopy, "{}{}", solar_system.get_avg_vein(ore) as i32, if index == 14 {""} else {","})?;
         }
 
         for planet in solar_system.get_planets() {
@@ -74,13 +74,13 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                         if vein.vein_type == *ore {
                             write!(pcopy, "{},", vein.min())?;
                             write!(pcopy, "{},", vein.max())?;
-                            write!(pcopy, "{}{}", vein.estimate(), if index == 15 {""} else {","})?; // if it is the last entry, skip the comma
+                            write!(pcopy, "{}{}", vein.estimate(), if index == 14 {""} else {","})?; // if it is the last entry, skip the comma
                             found = true;
                             break;
                         }
                     }
                     if !found {
-                        write!(pcopy, "-1,-1,-1{}", if index == 15 {""} else {","})?;
+                        write!(pcopy, "-1,-1,-1{}", if index == 14 {""} else {","})?;
                     }
                 }
             }
