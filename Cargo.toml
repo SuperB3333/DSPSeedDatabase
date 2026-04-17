@@ -21,6 +21,7 @@ serde = { version = "1.0.193", features = ["derive", "rc"] }
 
 [target.'cfg(not(target_arch = "wasm32"))'.dependencies]
 postgres =  { version = "0.19.13" }
+rayon = "1.10.0"
 
 [target.'cfg(target_arch = "python")'.dependencies]
 pyo3 = { version = "0.28.2", features = ["full"]}

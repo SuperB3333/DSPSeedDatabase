@@ -98,7 +98,7 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
 }
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 5000;
+const END_SEED: i32 = 25000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
