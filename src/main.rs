@@ -2,6 +2,7 @@ mod data;
 mod worldgen;
 
 use postgres::{Client, CopyInWriter, NoTls};
+use std::time::{Duration, Instant};
 use std::io::Write;
 
 use crate::data::enums::{PlanetType, ORES};
@@ -10,7 +11,7 @@ use crate::worldgen::galaxy_gen::create_galaxy;
 
 use std::fs::File;
 
-fn insert_seed(scopy: &mut File, pcopy: &mut File, seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(), Box<dyn std::error::Error>> {
+fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut game_desc: GameDesc = GameDesc::default();
     game_desc.seed = seed;
@@ -69,7 +70,7 @@ fn insert_seed(scopy: &mut File, pcopy: &mut File, seed: i32, star_count: usize,
                 for _ in 0..41 {
                     write!(pcopy, "-1,")?;
                 }
-                write!(pcopy, "-1")?;
+                write!(pcopy, "-1\n")?;
             } else {
                 for (index, ore) in ORES[1..15].iter().enumerate() {
                     let mut found = false;
@@ -93,7 +94,7 @@ fn insert_seed(scopy: &mut File, pcopy: &mut File, seed: i32, star_count: usize,
 }
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 1;
+const END_SEED: i32 = 1000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
@@ -108,12 +109,13 @@ fn main() {
     let mut scpy = star_client.copy_in(COPY_STAR).unwrap();
     let mut pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
 
-    let mut tcpy1 = File::create("stars.csv").unwrap();
-    let mut tcpy2 = File::create("planets.csv").unwrap();
-
+    let start = Instant::now();
     for seed in START_SEED..END_SEED {
-        insert_seed(&mut tcpy1, &mut tcpy2, seed, STAR_COUNT, REC_MULTIPLIER).expect("insert_seed failed");
+        insert_seed(&mut scpy, &mut pcpy, seed, STAR_COUNT, REC_MULTIPLIER).expect("insert_seed failed");
     }
     scpy.finish().unwrap();
     pcpy.finish().unwrap();
+    let elapsed = start.elapsed();
+    let per_second = (END_SEED - START_SEED) as f32 / elapsed.as_secs() as f32;
+    println!("seeds/sec: {:?}", per_second);
 }
