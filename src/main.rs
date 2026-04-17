@@ -2,6 +2,7 @@ mod data;
 mod worldgen;
 
 use postgres::{Client, CopyInWriter, NoTls};
+use std::collections::HashMap;
 use std::time::Instant;
 use std::io::Write;
 
@@ -68,6 +69,7 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
             )?;
 
             let veins = planet.get_veins();
+            let vein_map: HashMap<_, _> = veins.iter().map(|v| (v.vein_type, v)).collect();
 
             if planet.get_type() == &PlanetType::Gas {
                 for _ in 0..41 {
@@ -76,21 +78,17 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                 write!(pcopy, "-1\n")?;
             } else {
                 for (index, ore) in ORES[1..15].iter().enumerate() {
-                    let mut found = false;
-                    for vein in veins {
-                        if vein.vein_type == *ore {
-                            write!(pcopy, "{},{},{}{}",
-                                vein.min(),
-                                vein.max(),
-                                vein.estimate(),
-                                if index == 13 {"\n"} else {","} // if it is the last entry, skip the comma
-                            )?;
-                            found = true;
-                            break;
-                        }
-                    }
-                    if !found {
-                        write!(pcopy, "-1,-1,-1{}", if index == 13 {"\n"} else {","})?;
+                    if let Some(vein) = vein_map.get(ore) {
+                        write!(
+                            pcopy,
+                            "{},{},{}{}",
+                            vein.min(),
+                            vein.max(),
+                            vein.estimate(),
+                            if index == 13 { "\n" } else { "," }
+                        )?;
+                    } else {
+                        write!(pcopy, "-1,-1,-1{}", if index == 13 { "\n" } else { "," })?;
                     }
                 }
             }
