@@ -1,19 +1,17 @@
 mod data;
 mod worldgen;
 
-use postgres::{Client, NoTls};
-use rayon::prelude::*;
+use postgres::{Client, CopyInWriter, NoTls};
 use std::collections::HashMap;
-use std::fmt::Write;
-use std::io::Write as IoWrite;
 use std::time::Instant;
+use std::io::Write;
 
 use crate::data::enums::{PlanetType, ORES};
 use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
 
-fn insert_seed(seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(String, String), Box<dyn std::error::Error>> {
+fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(), Box<dyn std::error::Error>> {
 
     let mut game_desc: GameDesc = GameDesc::default();
     game_desc.seed = seed;
@@ -21,26 +19,23 @@ fn insert_seed(seed: i32, star_count: usize, resource_multiplier: f32) -> Result
     game_desc.resource_multiplier = resource_multiplier;
     let galaxy = create_galaxy(&game_desc);
 
-    let mut star_data = String::new();
-    let mut planet_data = String::new();
-
     for solar_system in galaxy.stars {
         let star = solar_system.star.clone();
         let star_id = star.index as i32 + seed * 100;
 
-        write!(&mut star_data, "{},{},{},{},{},{},{},{},",
-            star_id,
-            seed,
-            star.position.magnitude(),
-            star.index,
-            star.get_luminosity(),
-            star.get_dyson_radius(),
-            star.star_type.clone() as i32 + 1,
-            star.get_spectr().clone() as i32
+        write!(scopy, "{},{},{},{},{},{},{},{},",
+               star_id,
+               seed,
+               star.position.magnitude(),
+               star.index,
+               star.get_luminosity(),
+               star.get_dyson_radius(),
+               star.star_type.clone() as i32 + 1,
+               star.get_spectr().clone() as i32
         )?;
 
         for (index, ore) in ORES[1..15].iter().enumerate() {
-            write!(&mut star_data, "{}{}", solar_system.get_avg_vein(ore) as i32, if index == 13 {"\n"} else {","})?;
+            write!(scopy, "{}{}", solar_system.get_avg_vein(ore) as i32, if index == 13 {"\n"} else {","})?;
         }
 
         for planet in solar_system.get_planets() {
@@ -55,22 +50,22 @@ fn insert_seed(seed: i32, star_count: usize, resource_multiplier: f32) -> Result
                         1120 => gas_h = rate,
                         1121 => gas_d = rate,
                         1011 => gas_i = rate,
-                        _ => panic!("Illegal state: gas was not 1120, 1121 or 1011!"),
+                        _ => panic!("Illegal state: gas was not 1120, 1121 or 1011! This should never happen.")
                     }
                 }
             }
-            write!(&mut planet_data, "{},{},{},{},{},{},{},{},{},{},{},{},{},",
-                star_id,
-                planet.index,
-                planet.get_theme().water_item_id,
-                planet.get_type() == &PlanetType::Gas,
-                planet.get_orbital_radius(),
-                planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32,
-                satellite_count,
-                planet.get_theme().temperature,
-                planet.get_theme().id,
-                gas_h, gas_d, gas_i,
-                planet.get_rotation_period() == planet.get_orbital_period()
+            write!(pcopy, "{},{},{},{},{},{},{},{},{},{},{},{},{},",
+                   star_id,
+                   planet.index,
+                   planet.get_theme().water_item_id,
+                   planet.get_type() == &PlanetType::Gas,
+                   planet.get_orbital_radius(),
+                   planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32,
+                   satellite_count,
+                   planet.get_theme().temperature,
+                   planet.get_theme().id,
+                   gas_h, gas_d, gas_i,
+                   planet.get_rotation_period() == planet.get_orbital_period()
             )?;
 
             let veins = planet.get_veins();
@@ -78,14 +73,14 @@ fn insert_seed(seed: i32, star_count: usize, resource_multiplier: f32) -> Result
 
             if planet.get_type() == &PlanetType::Gas {
                 for _ in 0..41 {
-                    write!(&mut planet_data, "-1,")?;
+                    write!(pcopy, "-1,")?;
                 }
-                write!(&mut planet_data, "-1\n")?;
+                write!(pcopy, "-1\n")?;
             } else {
                 for (index, ore) in ORES[1..15].iter().enumerate() {
                     if let Some(vein) = vein_map.get(ore) {
                         write!(
-                            &mut planet_data,
+                            pcopy,
                             "{},{},{}{}",
                             vein.min(),
                             vein.max(),
@@ -93,13 +88,13 @@ fn insert_seed(seed: i32, star_count: usize, resource_multiplier: f32) -> Result
                             if index == 13 { "\n" } else { "," }
                         )?;
                     } else {
-                        write!(&mut planet_data, "-1,-1,-1{}", if index == 13 { "\n" } else { "," })?;
+                        write!(pcopy, "-1,-1,-1{}", if index == 13 { "\n" } else { "," })?;
                     }
                 }
             }
         }
     }
-    Ok((star_data, planet_data))
+    Ok(())
 }
 
 const START_SEED: i32 = 0;
@@ -112,22 +107,15 @@ const COPY_PLANET: &str = "COPY planets(star_id, index, water_item, gas_giant, s
 const COPY_STAR: &str = "COPY stars(id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT CSV)";
 
 fn main() {
-    let start = Instant::now();
-
-    let results: Vec<(String, String)> = (START_SEED..END_SEED)
-        .into_par_iter()
-        .map(|seed| insert_seed(seed, STAR_COUNT, REC_MULTIPLIER).expect("insert_seed failed"))
-        .collect();
-
     let mut star_client = Client::connect("postgres://postgres:rootpassword@localhost:5432/dsp?sslmode=disable", NoTls).unwrap();
     let mut planet_client = Client::connect("postgres://postgres:rootpassword@localhost:5432/dsp?sslmode=disable", NoTls).unwrap();
 
     let mut scpy = star_client.copy_in(COPY_STAR).unwrap();
     let mut pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
 
-    for (star_data, planet_data) in results {
-        scpy.write_all(star_data.as_bytes()).unwrap();
-        pcpy.write_all(planet_data.as_bytes()).unwrap();
+    let start = Instant::now();
+    for seed in START_SEED..END_SEED {
+        insert_seed(&mut scpy, &mut pcpy, seed, STAR_COUNT, REC_MULTIPLIER).expect("insert_seed failed");
     }
     scpy.finish().unwrap();
     pcpy.finish().unwrap();
