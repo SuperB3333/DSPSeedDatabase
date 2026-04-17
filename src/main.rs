@@ -2,14 +2,13 @@ mod data;
 mod worldgen;
 
 use postgres::{Client, CopyInWriter, NoTls};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 use std::io::Write;
 
 use crate::data::enums::{PlanetType, ORES};
 use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
-use std::fs::File;
 
 fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(), Box<dyn std::error::Error>> {
 
