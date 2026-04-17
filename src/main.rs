@@ -23,7 +23,9 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
         let star = solar_system.star.clone();
         let star_id = star.index as i32 + seed * 100;
 
-        write!(scopy, "{},{},{},{},{},{},{},{},",
+        let mut star_line = String::with_capacity(120);
+
+        star_line.push_str(format!("{},{},{},{},{},{},{},{},",
                star_id,
                seed,
                star.position.magnitude(),
@@ -32,11 +34,13 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                star.get_dyson_radius(),
                star.star_type.clone() as i32 + 1,
                star.get_spectr().clone() as i32
-        )?;
+        ).as_str());
 
         for (index, ore) in ORES[1..15].iter().enumerate() {
-            write!(scopy, "{}{}", solar_system.get_avg_vein(ore) as i32, if index == 13 {"\n"} else {","})?;
+            star_line.push_str(format!("{}{}", solar_system.get_avg_vein(ore) as i32, if index == 13 {"\n"} else {","}).as_str());
         }
+
+        write!(scopy, "{}", star_line)?;
 
         for planet in solar_system.get_planets() {
             let satellite_count = -1; //todo implement
@@ -54,7 +58,9 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                     }
                 }
             }
-            write!(pcopy, "{},{},{},{},{},{},{},{},{},{},{},{},{},",
+            let mut planet_line = String::with_capacity(256);
+
+            planet_line.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},{},",
                    star_id,
                    planet.index,
                    planet.get_theme().water_item_id,
@@ -66,32 +72,31 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                    planet.get_theme().id,
                    gas_h, gas_d, gas_i,
                    planet.get_rotation_period() == planet.get_orbital_period()
-            )?;
+            ).as_str());
 
             let veins = planet.get_veins();
             let vein_map: HashMap<_, _> = veins.iter().map(|v| (v.vein_type.clone(), v)).collect();
 
             if planet.get_type() == &PlanetType::Gas {
                 for _ in 0..41 {
-                    write!(pcopy, "-1,")?;
+                    planet_line.push_str("-1,");
                 }
-                write!(pcopy, "-1\n")?;
+                planet_line.push_str("-1\n");
             } else {
                 for (index, ore) in ORES[1..15].iter().enumerate() {
                     if let Some(vein) = vein_map.get(ore) {
-                        write!(
-                            pcopy,
-                            "{},{},{}{}",
+                        planet_line.push_str(format!("{},{},{}{}",
                             vein.min(),
                             vein.max(),
                             vein.estimate(),
                             if index == 13 { "\n" } else { "," }
-                        )?;
+                        ).as_str());
                     } else {
-                        write!(pcopy, "-1,-1,-1{}", if index == 13 { "\n" } else { "," })?;
+                        planet_line.push_str(format!("-1,-1,-1{}", if index == 13 { "\n" } else { "," }).as_str());
                     }
                 }
             }
+            write!(pcopy, "{}", planet_line)?;
         }
     }
     Ok(())
