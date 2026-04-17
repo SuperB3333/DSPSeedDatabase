@@ -69,7 +69,7 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
             )?;
 
             let veins = planet.get_veins();
-            let vein_map: HashMap<_, _> = veins.iter().map(|v| (v.vein_type, v)).collect();
+            let vein_map: HashMap<_, _> = veins.iter().map(|v| (v.vein_type.clone(), v)).collect();
 
             if planet.get_type() == &PlanetType::Gas {
                 for _ in 0..41 {
@@ -98,7 +98,7 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
 }
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 1000;
+const END_SEED: i32 = 5000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
