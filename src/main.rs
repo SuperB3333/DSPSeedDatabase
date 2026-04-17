@@ -22,14 +22,16 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
         let star = solar_system.star.clone();
         let star_id = star.index as i32 + seed * 100;
 
-        write!(scopy, "{},", star_id)?;
-        write!(scopy, "{},", seed)?;
-        write!(scopy, "{},", star.position.magnitude())?;
-        write!(scopy, "{},", star.index)?;
-        write!(scopy, "{},", star.get_luminosity())?;
-        write!(scopy, "{},", star.get_dyson_radius())?;
-        write!(scopy, "{},", star.star_type.clone() as i32 + 1)?;
-        write!(scopy, "{},", star.get_spectr().clone() as i32)?;
+        write!(scopy, "{},{},{},{},{},{},{},{},",
+            star_id,
+            seed,
+            star.position.magnitude(),
+            star.index,
+            star.get_luminosity(),
+            star.get_dyson_radius(),
+            star.star_type.clone() as i32 + 1,
+            star.get_spectr().clone() as i32
+        )?;
 
         for (index, ore) in ORES[1..15].iter().enumerate() {
             write!(scopy, "{}{}", solar_system.get_avg_vein(ore) as i32, if index == 13 {"\n"} else {","})?;
@@ -51,17 +53,19 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                     }
                 }
             }
-            write!(pcopy, "{},", star_id)?;
-            write!(pcopy, "{},", planet.index)?;
-            write!(pcopy, "{},", planet.get_theme().water_item_id)?;
-            write!(pcopy, "{},", planet.get_type() == &PlanetType::Gas)?;
-            write!(pcopy, "{},", planet.get_orbital_radius())?;
-            write!(pcopy, "{},", planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32)?;
-            write!(pcopy, "{},", satellite_count)?;
-            write!(pcopy, "{},", planet.get_theme().temperature)?;
-            write!(pcopy, "{},", planet.get_theme().id)?;
-            write!(pcopy, "{},{},{},", gas_h, gas_d, gas_i)?;
-            write!(pcopy, "{},", planet.get_rotation_period() == planet.get_orbital_period())?;
+            write!(pcopy, "{},{},{},{},{},{},{},{},{},{},{},{},{},",
+                star_id,
+                planet.index,
+                planet.get_theme().water_item_id,
+                planet.get_type() == &PlanetType::Gas,
+                planet.get_orbital_radius(),
+                planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32,
+                satellite_count,
+                planet.get_theme().temperature,
+                planet.get_theme().id,
+                gas_h, gas_d, gas_i,
+                planet.get_rotation_period() == planet.get_orbital_period()
+            )?;
 
             let veins = planet.get_veins();
 
@@ -75,9 +79,12 @@ fn insert_seed(scopy: &mut CopyInWriter, pcopy: &mut CopyInWriter, seed: i32, st
                     let mut found = false;
                     for vein in veins {
                         if vein.vein_type == *ore {
-                            write!(pcopy, "{},", vein.min())?;
-                            write!(pcopy, "{},", vein.max())?;
-                            write!(pcopy, "{}{}", vein.estimate(), if index == 13 {"\n"} else {","})?; // if it is the last entry, skip the comma
+                            write!(pcopy, "{},{},{}{}",
+                                vein.min(),
+                                vein.max(),
+                                vein.estimate(),
+                                if index == 13 {"\n"} else {","} // if it is the last entry, skip the comma
+                            )?;
                             found = true;
                             break;
                         }
