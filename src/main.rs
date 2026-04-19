@@ -12,10 +12,11 @@ use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 25000;
+const END_SEED: i32 = 1000000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 const THREAD_COUNT: usize = 8;
+const COMMIT_SIZE: i32 = 2 ^ 14;
 const DB_STR: &str = "postgres://postgres:rootpassword@localhost:5432/dsp?sslmode=disable";
 
 fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(String, String), Box<dyn std::error::Error>> {
@@ -120,6 +121,12 @@ fn per_thread(seeds: Range<i32>) {
         let (star_csv, planet_csv) = gen_formatted(seed, STAR_COUNT, REC_MULTIPLIER).expect("gen_formatted failed");
         scpy.write_all(star_csv.as_bytes()).expect("writing to scpy failed");
         pcpy.write_all(planet_csv.as_bytes()).expect("writing to pcpy failed");
+        if seed % COMMIT_SIZE == 0 && seed != 0 {
+            scpy.finish().unwrap();
+            pcpy.finish().unwrap();
+            scpy = star_client.copy_in(COPY_STAR).unwrap();
+            pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
+        }
     }
     scpy.finish().unwrap();
     pcpy.finish().unwrap();
