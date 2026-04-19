@@ -12,7 +12,7 @@ use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 1000000;
+const END_SEED: i32 = 1_000_000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 const THREAD_COUNT: usize = 8;
