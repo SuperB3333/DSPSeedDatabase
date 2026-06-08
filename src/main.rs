@@ -2,6 +2,7 @@ mod data;
 mod worldgen;
 
 use postgres::{Client, NoTls};
+use crossbeam_channel::{Sender, Receiver, unbounded, bounded};
 use std::collections::HashMap;
 use std::time::Instant;
 use std::io::Write;
@@ -12,12 +13,15 @@ use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 1_000_000;
+const END_SEED: i32 = 10_000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 const THREAD_COUNT: usize = 8;
-const COMMIT_SIZE: i32 = 2 ^ 14;
+const COMMIT_THREADS: usize = 4;
+const COMMIT_ENTRIES: usize = 1000;
 const DB_STR: &str = "postgres://postgres:rootpassword@localhost:5432/dsp?sslmode=disable";
+
+
 
 fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(String, String), Box<dyn std::error::Error>> {
     let mut game_desc: GameDesc = GameDesc::default();
@@ -110,26 +114,38 @@ const COPY_PLANET: &str = "COPY planets(star_id, index, water_item, gas_giant, s
 const COPY_STAR: &str = "COPY stars(id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT CSV)";
 
 
-fn per_thread(seeds: Range<i32>) {
+fn worker_per_thread(seeds: Range<i32>, send: Sender<(String, String)>) {
+    for seed in seeds {
+        let entry = gen_formatted(seed, STAR_COUNT, REC_MULTIPLIER).expect("gen_formatted failed");
+        send.send(entry).unwrap();
+
+    }
+}
+fn commit_thread(rec: Receiver<(String, String)>, term: Receiver<()>) {
     let mut star_client = Client::connect(DB_STR, NoTls).unwrap();
     let mut planet_client = Client::connect(DB_STR, NoTls).unwrap();
 
     let mut scpy = star_client.copy_in(COPY_STAR).unwrap();
     let mut pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
-
-    for seed in seeds {
-        let (star_csv, planet_csv) = gen_formatted(seed, STAR_COUNT, REC_MULTIPLIER).expect("gen_formatted failed");
-        scpy.write_all(star_csv.as_bytes()).expect("writing to scpy failed");
-        pcpy.write_all(planet_csv.as_bytes()).expect("writing to pcpy failed");
-        if seed % COMMIT_SIZE == 0 && seed != 0 {
+    let mut i = 0;
+    loop {
+        i += 1;
+        let (star, planet) = rec.recv().unwrap();
+        scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
+        pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
+        if i % COMMIT_ENTRIES == 0 {
             scpy.finish().unwrap();
             pcpy.finish().unwrap();
             scpy = star_client.copy_in(COPY_STAR).unwrap();
             pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
         }
+        if !term.is_empty() { break }
+
     }
     scpy.finish().unwrap();
     pcpy.finish().unwrap();
+    star_client.close().unwrap();
+    planet_client.close().unwrap();
 }
 fn split_chunks(r: Range<i32>, chunks: usize) -> Vec<Range<i32>> {
     let total = (r.end - r.start) as usize;
@@ -151,14 +167,30 @@ fn main() {
 
     let all_seeds = START_SEED..END_SEED;
     let workloads = split_chunks(all_seeds, THREAD_COUNT);
-    let mut handles = vec![];
+    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = unbounded();
+    let (terminator, terminate): (Sender<()>, Receiver<()>) = bounded(1);
+
+    let mut work_handles = vec![];
+    let mut commit_handles = vec![];
     for work in workloads {
-        handles.push(thread::spawn(move || {
-            per_thread(work);
+        let thread_sender = entry_sender.clone();
+        work_handles.push(thread::spawn(move || {
+            worker_per_thread(work, thread_sender);
         }))
     }
-    for handle in handles {
-        handle.join().unwrap();
+    for _ in 0..COMMIT_THREADS {
+        let thread_receiver = entry_reciever.clone();
+        let term = terminate.clone();
+        commit_handles.push(thread::spawn(move || {
+            commit_thread(thread_receiver, term);
+        }))
+    }
+    for handle in work_handles {
+        handle.join().unwrap(); // wait for all workers to finish
+    }
+    terminator.send(()).unwrap(); // terminate senders
+    for handle in commit_handles {
+        handle.join().unwrap(); // wait for senders to finish
     }
 
     let elapsed = start.elapsed();
