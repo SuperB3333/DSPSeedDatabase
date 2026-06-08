@@ -3,8 +3,7 @@ mod worldgen;
 
 use postgres::{Client, NoTls};
 use crossbeam_channel::{Sender, Receiver, unbounded, bounded};
-use std::collections::HashMap;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 use std::io::Write;
 use std::ops::Range;
 use std::thread;
@@ -13,7 +12,7 @@ use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 10_000;
+const END_SEED: i32 = 1_000_000;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 const THREAD_COUNT: usize = 8;
@@ -44,8 +43,8 @@ fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Resu
                star.index,
                star.get_luminosity(),
                star.get_dyson_radius(),
-               star.star_type.clone() as i32 + 1,
-               star.get_spectr().clone() as i32
+               star.star_type as i32 + 1,
+               *star.get_spectr() as i32
         ).as_str());
 
         for (index, ore) in ORES[1..15].iter().enumerate() {
@@ -84,7 +83,14 @@ fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Resu
             ).as_str());
 
             let veins = planet.get_veins();
-            let vein_map: HashMap<_, _> = veins.iter().map(|v| (v.vein_type.clone(), v)).collect();
+            // OPTIMIZATION: Use fixed-size array indexed by VeinType discriminant instead of HashMap.
+            // VeinType is #[repr(i32)] with variants None=0..Max=15, so a 16-element array gives
+            // O(1) lookup with zero heap allocation, vs HashMap which allocates per-planet.
+            // Impact: Eliminates ~256K HashMap allocations per 1000 seeds in the hot loop.
+            let mut vein_map: [Option<&crate::data::vein::Vein>; 16] = [None; 16];
+            for v in veins.iter() {
+                vein_map[v.vein_type as usize] = Some(v);
+            }
 
             if planet.get_type() == &PlanetType::Gas {
                 for _ in 0..41 {
@@ -93,7 +99,7 @@ fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Resu
                 planets.push_str("-1\n");
             } else {
                 for (index, ore) in ORES[1..15].iter().enumerate() {
-                    if let Some(vein) = vein_map.get(ore) {
+                    if let Some(vein) = vein_map[*ore as usize] {
                         planets.push_str(format!("{},{},{}{}",
                             vein.min(),
                             vein.max(),
@@ -121,7 +127,7 @@ fn worker_per_thread(seeds: Range<i32>, send: Sender<(String, String)>) {
 
     }
 }
-fn commit_thread(rec: Receiver<(String, String)>, term: Receiver<()>) {
+fn commit_thread(rec: Receiver<(String, String)>) {
     let mut star_client = Client::connect(DB_STR, NoTls).unwrap();
     let mut planet_client = Client::connect(DB_STR, NoTls).unwrap();
 
@@ -130,7 +136,10 @@ fn commit_thread(rec: Receiver<(String, String)>, term: Receiver<()>) {
     let mut i = 0;
     loop {
         i += 1;
-        let (star, planet) = rec.recv().unwrap();
+        let (star, planet) = match rec.recv() {
+            Ok(msg) => msg,
+            Err(_) => break,
+        };
         scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
         pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
         if i % COMMIT_ENTRIES == 0 {
@@ -139,7 +148,6 @@ fn commit_thread(rec: Receiver<(String, String)>, term: Receiver<()>) {
             scpy = star_client.copy_in(COPY_STAR).unwrap();
             pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
         }
-        if !term.is_empty() { break }
 
     }
     scpy.finish().unwrap();
@@ -168,7 +176,6 @@ fn main() {
     let all_seeds = START_SEED..END_SEED;
     let workloads = split_chunks(all_seeds, THREAD_COUNT);
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = unbounded();
-    let (terminator, terminate): (Sender<()>, Receiver<()>) = bounded(1);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
@@ -180,15 +187,18 @@ fn main() {
     }
     for _ in 0..COMMIT_THREADS {
         let thread_receiver = entry_reciever.clone();
-        let term = terminate.clone();
         commit_handles.push(thread::spawn(move || {
-            commit_thread(thread_receiver, term);
+            commit_thread(thread_receiver);
         }))
     }
     for handle in work_handles {
         handle.join().unwrap(); // wait for all workers to finish
     }
-    terminator.send(()).unwrap(); // terminate senders
+    loop {
+        if entry_reciever.is_empty() { break }
+        thread::sleep(Duration::new(1, 0));
+    }
+    drop(entry_sender); // close the channel so recv() returns Err instead of blocking
     for handle in commit_handles {
         handle.join().unwrap(); // wait for senders to finish
     }
