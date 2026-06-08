@@ -17,8 +17,6 @@ mod dsp_generator {
 
     use crate::worldgen::galaxy_gen::create_galaxy;
 
-
-
     #[pyfunction]
     #[allow(non_snake_case)]
     fn generate(py: Python, seed: i32, star_count: usize, resource_multiplier: f32) -> PyResult<Bound<'_, PyAny>> {
