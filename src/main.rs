@@ -1,5 +1,6 @@
 mod data;
 mod worldgen;
+mod macros;
 
 use postgres::{Client, NoTls};
 use crossbeam_channel::{Sender, Receiver, unbounded};
@@ -7,20 +8,14 @@ use std::time::{Duration, Instant};
 use std::io::Write;
 use std::ops::Range;
 use std::thread;
-use crate::data::enums::{PlanetType, ORES};
-use crate::data::game_desc::GameDesc;
-use crate::worldgen::galaxy_gen::create_galaxy;
+use data::enums::{PlanetType, ORES};
+use data::game_desc::GameDesc;
+use worldgen::galaxy_gen::create_galaxy;
+use macros::{env_str, env_int};
 
-const START_SEED: i32 = 0;
-const END_SEED: i32 = 30;
+
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
-const THREAD_COUNT: usize = 1;
-const COMMIT_THREADS: usize = 1;
-const COMMIT_ENTRIES: usize = 10;
-const DB_STR: &str = "postgres://postgres:rootpassword@localhost:5432/dsp?sslmode=disable";
-
-
 
 fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(String, String), Box<dyn std::error::Error>> {
     let mut game_desc: GameDesc = GameDesc::default();
@@ -87,7 +82,7 @@ fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Resu
             // VeinType is #[repr(i32)] with variants None=0..Max=15, so a 16-element array gives
             // O(1) lookup with zero heap allocation, vs HashMap which allocates per-planet.
             // Impact: Eliminates ~256K HashMap allocations per 1000 seeds in the hot loop.
-            let mut vein_map: [Option<&crate::data::vein::Vein>; 16] = [None; 16];
+            let mut vein_map: [Option<&data::vein::Vein>; 16] = [None; 16];
             for v in veins.iter() {
                 vein_map[v.vein_type as usize] = Some(v);
             }
@@ -127,9 +122,9 @@ fn worker_per_thread(seeds: Range<i32>, send: Sender<(String, String)>) {
 
     }
 }
-fn commit_thread(rec: Receiver<(String, String)>) {
-    let mut star_client = Client::connect(DB_STR, NoTls).unwrap();
-    let mut planet_client = Client::connect(DB_STR, NoTls).unwrap();
+fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
+    let mut star_client = Client::connect(config.0.as_str(), NoTls).unwrap();
+    let mut planet_client = Client::connect(config.0.as_str(), NoTls).unwrap();
 
     let mut scpy = star_client.copy_in(COPY_STAR).unwrap();
     let mut pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
@@ -142,7 +137,7 @@ fn commit_thread(rec: Receiver<(String, String)>) {
         };
         scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
         pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
-        if i % COMMIT_ENTRIES == 0 {
+        if i % config.1 == 0 {
             scpy.finish().unwrap();
             pcpy.finish().unwrap();
             scpy = star_client.copy_in(COPY_STAR).unwrap();
@@ -155,26 +150,42 @@ fn commit_thread(rec: Receiver<(String, String)>) {
     star_client.close().unwrap();
     planet_client.close().unwrap();
 }
-fn split_chunks(r: Range<i32>, chunks: usize) -> Vec<Range<i32>> {
-    let total = (r.end - r.start) as usize;
+fn split_chunks(r: Range<i32>, chunks: i32) -> Vec<Range<i32>> {
+    let total = r.end - r.start;
     let base = total / chunks;
     let mut extra = total % chunks;
     let mut cur = r.start;
-    let mut out = Vec::with_capacity(chunks);
+    let mut out = Vec::with_capacity(chunks as usize);
     for _ in 0..chunks {
         let add = if extra > 0 { extra -= 1; base + 1 } else { base };
-        out.push(cur..(cur + add as i32));
-        cur += add as i32;
+        out.push(cur..(cur + add));
+        cur += add;
     }
     out
 }
+fn get_db_str() -> String {
+    let user = env_str!("PG_USER", "postgres");
+    let pass = env_str!("PG_PASS", "rootpassword");
+    let netloc = env_str!("PG_NETLOC", "localhost");
+    let port = env_str!("PG_PORT", "5432");
+    let db_name = env_str!("PG_DBNAME", "dsp");
+    format!("postgres://{user}:{pass}@{netloc}:{port}/{db_name}?sslmode=disable")
+}
 fn main() {
-    assert!(START_SEED < END_SEED);
-    assert!(THREAD_COUNT < END_SEED as usize);
+    let start_seed = env_int!("START_SEED", 0);
+    let end_seed = env_int!("END_SEED", 10_000);
+    let worker_count = env_int!("WORKER_THREADS", 8);
+    let writer_count = env_int!("WRITER_THREADS", 4);
+    let commit_count = env_int!("COMMIT_COUNT", 1000);
+
+    let conf = (get_db_str(), commit_count);
+
+    assert!(start_seed < end_seed);
+    assert!(worker_count < end_seed);
     let start = Instant::now();
 
-    let all_seeds = START_SEED..END_SEED;
-    let workloads = split_chunks(all_seeds, THREAD_COUNT);
+    let all_seeds = start_seed..end_seed;
+    let workloads = split_chunks(all_seeds, worker_count);
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = unbounded();
 
     let mut work_handles = vec![];
@@ -185,10 +196,11 @@ fn main() {
             worker_per_thread(work, thread_sender);
         }))
     }
-    for _ in 0..COMMIT_THREADS {
+    for _ in 0..writer_count {
         let thread_receiver = entry_reciever.clone();
+        let thread_conf = conf.clone();
         commit_handles.push(thread::spawn(move || {
-            commit_thread(thread_receiver);
+            commit_thread(thread_receiver, thread_conf);
         }))
     }
     for handle in work_handles {
@@ -200,6 +212,6 @@ fn main() {
     }
 
     let elapsed = start.elapsed();
-    let per_second = (END_SEED - START_SEED) as f32 / elapsed.as_secs() as f32;
+    let per_second = (end_seed - start_seed) as f32 / elapsed.as_secs() as f32;
     println!("seeds/sec: {:?}", per_second);
 }
