@@ -1,11 +1,11 @@
 use super::name_gen::random_name;
-use crate::data::enums::{SpectrType, StarType};
-use crate::data::galaxy::Galaxy;
-use crate::data::game_desc::GameDesc;
-use crate::data::random::DspRandom;
-use crate::data::star::Star;
-use crate::data::star_planets::StarWithPlanets;
-use crate::data::vector3::Vector3;
+use crate::algorithm::data::enums::{SpectrType, StarType};
+use crate::algorithm::data::galaxy::Galaxy;
+use crate::algorithm::data::game_desc::GameDesc;
+use crate::algorithm::data::random::DspRandom;
+use crate::algorithm::data::star::Star;
+use crate::algorithm::data::star_planets::StarWithPlanets;
+use crate::algorithm::data::vector3::Vector3;
 use std::rc::Rc;
 
 fn generate_temp_poses(
