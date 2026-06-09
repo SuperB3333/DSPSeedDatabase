@@ -1,6 +1,6 @@
-use crate::data::enums::StarType;
-use crate::data::random::DspRandom;
-use crate::data::star::Star;
+use crate::algorithm::data::enums::StarType;
+use crate::algorithm::data::random::DspRandom;
+use crate::algorithm::data::star::Star;
 
 fn gen_random_name(seed: i32, star: &Star) -> String {
     let mut rand = DspRandom::new(seed);
