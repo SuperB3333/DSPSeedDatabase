@@ -2,7 +2,7 @@ mod data;
 mod worldgen;
 
 use postgres::{Client, NoTls};
-use crossbeam_channel::{Sender, Receiver, unbounded, bounded};
+use crossbeam_channel::{Sender, Receiver, unbounded};
 use std::time::{Duration, Instant};
 use std::io::Write;
 use std::ops::Range;
@@ -12,12 +12,12 @@ use crate::data::game_desc::GameDesc;
 use crate::worldgen::galaxy_gen::create_galaxy;
 
 const START_SEED: i32 = 0;
-const END_SEED: i32 = 1_000_000;
+const END_SEED: i32 = 30;
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
-const THREAD_COUNT: usize = 8;
-const COMMIT_THREADS: usize = 4;
-const COMMIT_ENTRIES: usize = 1000;
+const THREAD_COUNT: usize = 1;
+const COMMIT_THREADS: usize = 1;
+const COMMIT_ENTRIES: usize = 10;
 const DB_STR: &str = "postgres://postgres:rootpassword@localhost:5432/dsp?sslmode=disable";
 
 
@@ -136,7 +136,7 @@ fn commit_thread(rec: Receiver<(String, String)>) {
     let mut i = 0;
     loop {
         i += 1;
-        let (star, planet) = match rec.recv() {
+        let (star, planet) = match rec.recv_timeout(Duration::new(1,0)) {
             Ok(msg) => msg,
             Err(_) => break,
         };
@@ -193,10 +193,6 @@ fn main() {
     }
     for handle in work_handles {
         handle.join().unwrap(); // wait for all workers to finish
-    }
-    loop {
-        if entry_reciever.is_empty() { break }
-        thread::sleep(Duration::new(1, 0));
     }
     drop(entry_sender); // close the channel so recv() returns Err instead of blocking
     for handle in commit_handles {
