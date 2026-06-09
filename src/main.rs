@@ -1,12 +1,10 @@
-mod data;
-mod worldgen;
 mod macros;
 mod algorithm;
 mod generate_csv;
 mod misc;
 
 use postgres::{Client, NoTls};
-use crossbeam_channel::{unbounded, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender};
 use std::{
     time::{Duration, Instant},
     io::Write,
@@ -62,6 +60,7 @@ fn main() {
     let worker_count = env_int!("WORKER_THREADS", 8);
     let writer_count = env_int!("WRITER_THREADS", 4);
     let commit_count = env_int!("COMMIT_COUNT", 1000);
+    let channel_size = env_int!("CHANNEL_SIZE", 1000);
 
     let conf = (get_db_str(), commit_count);
 
@@ -73,7 +72,7 @@ fn main() {
     // Prepare thread resources
     let all_seeds = start_seed..end_seed;
     let workloads = split_chunks(all_seeds, worker_count);
-    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = unbounded();
+    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(channel_size as usize);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
