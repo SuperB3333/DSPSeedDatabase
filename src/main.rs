@@ -1,3 +1,5 @@
+mod data;
+mod worldgen;
 mod macros;
 mod algorithm;
 mod generate_csv;
@@ -18,7 +20,6 @@ use misc::{split_chunks, COPY_PLANET, COPY_STAR, get_db_str};
 
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
-
 
 
 fn worker_per_thread(seeds: Range<i32>, send: Sender<(String, String)>) {
