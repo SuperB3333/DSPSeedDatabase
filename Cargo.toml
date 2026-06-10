@@ -16,3 +16,4 @@ crossbeam-channel = "0.5.15"
 once_cell = "1.19.0"
 serde = { version = "1.0.193", features = ["derive", "rc"] }
 postgres =  { version = "0.19.13" }
+crossterm = "0.29.0"

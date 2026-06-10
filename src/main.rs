@@ -2,6 +2,7 @@ mod macros;
 mod algorithm;
 mod generate_csv;
 mod misc;
+mod metrics;
 
 use postgres::{Client, NoTls};
 use crossbeam_channel::{bounded, Receiver, Sender};
@@ -11,14 +12,19 @@ use std::{
     ops::Range,
     thread
 };
-
+use std::io::stdout;
+use std::sync::atomic::AtomicI32;
+use crossterm::ExecutableCommand;
+use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use generate_csv::gen_formatted;
 use macros::env_int;
 use misc::{split_chunks, COPY_PLANET, COPY_STAR, get_db_str};
+use crate::metrics::write_metrics;
 
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
+static COMMITTED_SEEDS: AtomicI32 = AtomicI32::new(0);
 
 fn worker_per_thread(seeds: Range<i32>, send: Sender<(String, String)>) {
     for seed in seeds {
@@ -43,6 +49,7 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
         scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
         pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
         if i % config.1 == 0 {
+            COMMITTED_SEEDS.fetch_add(config.1, std::sync::atomic::Ordering::SeqCst);
             scpy.finish().unwrap();
             pcpy.finish().unwrap();
             scpy = star_client.copy_in(COPY_STAR).unwrap();
@@ -91,6 +98,19 @@ fn main() {
             commit_thread(thread_receiver, thread_conf);
         }))
     }
+    let mut stdout = stdout();
+    stdout.execute(EnterAlternateScreen).unwrap();
+    stdout.execute(crossterm::cursor::Hide).unwrap();
+
+    loop {
+
+        write_metrics(-1.0, end_seed - start_seed, entry_reciever.len() as i32).unwrap();
+        thread::sleep(Duration::from_millis(100));
+        if work_handles.iter().all(|i| i.is_finished()) { break }
+    }
+
+    stdout.execute(crossterm::cursor::Show).unwrap();
+    stdout.execute(LeaveAlternateScreen).unwrap();
     // Wait for threads to finish
     for handle in work_handles {
         handle.join().unwrap(); // wait for all workers to finish

@@ -50,7 +50,7 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
             }
 
             planets.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},{},",
-                                     star_id,
+                                     star_id, //todo implement tidal lock bool. the function exists in rust, just add it to the database
                                      planet.index,
                                      planet.get_theme().water_item_id,
                                      planet.get_type() == &PlanetType::Gas,

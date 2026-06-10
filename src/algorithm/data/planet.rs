@@ -9,6 +9,7 @@ use std::cell::{RefCell, UnsafeCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Planet<'a> {
     pub star: Rc<Star<'a>>,
@@ -274,6 +275,7 @@ impl<'a> Planet<'a> {
         }
     });
 
+    #[allow(dead_code)]
     pub fn is_tidal_locked(&self) -> bool {
         self.get_rotation_period() == self.get_orbital_period()
     }
