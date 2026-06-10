@@ -7,6 +7,7 @@ use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{RefCell, UnsafeCell};
 use std::f64::consts::PI;
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct Star<'a> {
     pub game_desc: &'a GameDesc,

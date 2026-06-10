@@ -1,5 +1,5 @@
 use super::enums::VeinType;
-use serde::{Serialize, Serializer};
+use serde::Serialize;
 
 #[derive(Debug, Clone, Serialize)]
 #[serde(rename_all = "camelCase")]

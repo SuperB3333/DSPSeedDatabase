@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-#[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Deserialize, Serialize)]
 pub enum StarType {
@@ -14,17 +13,6 @@ pub enum StarType {
 impl Default for StarType {
     fn default() -> Self {
         Self::MainSeqStar
-    }
-}
-impl StarType {
-    pub fn to_num(self) -> i32 {
-        match self {
-            StarType::MainSeqStar => 1,
-            StarType::GiantStar => 2,
-            StarType::WhiteDwarf => 3,
-            StarType::NeutronStar => 4,
-            StarType::BlackHole => 5,
-        }
     }
 }
 #[allow(dead_code)]

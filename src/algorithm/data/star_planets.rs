@@ -9,6 +9,7 @@ use super::star::Star;
 use serde::ser::SerializeStruct;
 use serde::{Serialize, Serializer};
 
+#[allow(dead_code)]
 #[derive(Debug)]
 pub struct StarWithPlanets<'a> {
     pub star: Rc<Star<'a>>,
