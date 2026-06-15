@@ -33,7 +33,10 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
         }
 
         for planet in solar_system.get_planets() {
-            let satellite_count = -1; //todo implement
+            let satellite_count = if !planet.is_gas_giant() { 0 } else {
+                -1 //todo implement
+            };
+
 
             let mut gas_h = &0.0;
             let mut gas_d = &0.0;
@@ -50,7 +53,7 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
             }
 
             planets.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},{},",
-                                     star_id, //todo implement tidal lock bool. the function exists in rust, just add it to the database
+                                     star_id,
                                      planet.index,
                                      planet.get_theme().water_item_id,
                                      planet.get_type() == &PlanetType::Gas,
