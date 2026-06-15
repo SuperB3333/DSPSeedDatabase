@@ -68,8 +68,8 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
 }
 fn main() {
     // Retrieve Config
-    let start_seed   = env_int!("START_SEED", 0);
-    let end_seed     = env_int!("END_SEED", 10_000);
+    let start_seed = env_int!("START_SEED", 0);
+    let end_seed = env_int!("END_SEED", 10_000);
     let worker_count = env_int!("WORKER_THREADS", 8);
     let writer_count = env_int!("WRITER_THREADS", 4);
     let commit_count = env_int!("COMMIT_COUNT", 1000);
