@@ -1,20 +1,24 @@
 # compose
-This folder contains different Docker compose run configurations 
-for the project that you can choose from.
+This folder contains Docker Compose configurations for running project services
+individually.
 
 #### Variations
 - **compose.yaml**
-The default compose file. Sets up only the seedfinder container with default configs.
+Runs only the `seedfinder` container. It is configured to connect to an
+individually managed PostgreSQL instance at `host.docker.internal:5432` using
+database `dsp`, user `postgres`, and password `rootpassword`.
 
 - **compose.postgres.yaml**
-Replaces the default SQLite backend with PostgreSQL. Adds a Postgres container
-and configures seedfinder to use it for persistent storage.
+Runs only a PostgreSQL container for individual connections from local tools or
+from `seedfinder` in `compose.yaml`. It publishes PostgreSQL on localhost port
+`5432`, creates database `dsp`, and persists data in `../data`.
 
-- **compose.monitoring.yaml**
-Adds Prometheus + Grafana containers. Seedfinder exposes metrics on a
-configurable port; Prometheus scrapes them and Grafana provides dashboards.
+#### Usage
+- Start PostgreSQL only:
+  `docker compose -f compose.postgres.yaml up -d`
 
-- **compose.full-stack.yaml**
-Combines compose.yaml, compose.postgres.yaml, and compose.monitoring.yaml
-into a single all-in-one stack. Requires the most resources but gives you
-the full feature set.
+- Start seedfinder only:
+  `docker compose -f compose.yaml up -d`
+
+- Connect locally:
+  `postgresql://postgres:rootpassword@localhost:5432/dsp`
