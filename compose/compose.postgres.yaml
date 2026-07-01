@@ -9,7 +9,7 @@ services:
       PG_PASS: rootpassword # Default values
       PG_PORT: 5432
       PG_DBNAME: dsp
-      PG_NETLOC: host.docker.internal
+      PG_NETLOC: postgres
     restart: unless-stopped
   postgres:
     image: postgres:16
