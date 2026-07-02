@@ -10,4 +10,4 @@ services:
       PG_PORT: 5432
       PG_DBNAME: dsp
       PG_NETLOC: host.docker.internal
-    restart: unless-stopped
+    restart: on-failure
