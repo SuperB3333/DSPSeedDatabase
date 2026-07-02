@@ -93,9 +93,9 @@ fn main() {
 
     let conf = (get_db_str(), commit_count);
 
-    assert!(start_seed < end_seed);
-    assert!(worker_count < end_seed);
-    assert!(worker_count < 32);
+    assert!(start_seed < end_seed, "START_SEED ({}) must be less than END_SEED ({})", start_seed, end_seed);
+    assert!(worker_count < end_seed, "WORKER_THREADS ({}) must be less than END_SEED ({})", worker_count, end_seed);
+    assert!(worker_count < 32, "WORKER_THREADS ({}) must be at most 31, got {}", worker_count, worker_count);
 
     // Resume from checkpoint if available
     if let Ok(cp_data) = std::fs::read_to_string(&checkpoint_file) {
