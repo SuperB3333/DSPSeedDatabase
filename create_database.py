@@ -22,6 +22,8 @@ def create_schema():
 
 
     # 3. Create star table
+    dist_cols = '\n'.join([f"dist_{spectr} FLOAT," for spectr in SpectrType.keys()]) + "#TODO implement this"
+    ore_cols = ',\n'.join([f"ore_{vein} INT" for vein in veins])
     cursor.execute(f"""
         CREATE TABLE stars (
             id INT UNIQUE PRIMARY KEY,
@@ -34,10 +36,13 @@ def create_schema():
             type INT, {c("Needs an enum to get the star type")}
             spectr INT, {c("same here")}
             
-            {c('\n'.join([f"dist_{spectr} FLOAT," for spectr in SpectrType.keys()]) + "#TODO implement this")}
-            {',\n'.join([f"ore_{vein} INT" for vein in veins])}  {c("Add an int value for each of the ores")}
+            {c(dist_cols)}
+            {ore_cols}  {c("Add an int value for each of the ores")}
         );
     """)
+    estimate_cols = "\n".join([f"estimate_{ore} INT," for ore in veins])
+    min_cols = "\n".join([f"min_{ore} INT," for ore in veins])
+    max_cols = ",\n".join([f"max_{ore} INT" for ore in veins])
     cursor.execute(f"""
         CREATE TABLE planets (
             star_id INT,
@@ -57,9 +62,10 @@ def create_schema():
             gas_d FLOAT, {c("Deuterium")}
             gas_i FLOAT, {c("Fireice")}
             
-            {"\n".join([f"estimate_{ore} INT," for ore in veins])}            
-            {"\n".join([f"min_{ore} INT," for ore in veins])}            
-            {",\n".join([f"max_{ore} INT" for ore in veins])}            
+            {estimate_cols}            
+            {min_cols}            
+            {max_cols}            
+            UNIQUE(star_id, index)
         );
     """)
 
