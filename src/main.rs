@@ -5,7 +5,7 @@ mod misc;
 mod metrics;
 
 use postgres::{Client, NoTls};
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, Sender, RecvTimeoutError};
 use std::{
     time::{Duration, Instant},
     io::Write,
@@ -48,7 +48,9 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
         for _ in 0..commit_size {
             match rec.recv_timeout(Duration::new(1, 0)) {
                 Ok(msg) => batch.push(msg),
-                Err(_) => break,
+                Err(RecvTimeoutError::Timeout) =>
+                    panic!("commit_thread: recv_timeout reached - channel stall detected (>1s lull)"),
+                Err(RecvTimeoutError::Disconnected) => break,
             }
         }
 
