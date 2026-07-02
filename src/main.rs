@@ -3,6 +3,7 @@ mod algorithm;
 mod generate_csv;
 mod misc;
 mod metrics;
+mod logging;
 
 use postgres::{Client, NoTls};
 use crossbeam_channel::{bounded, Receiver, Sender, RecvTimeoutError};
@@ -40,7 +41,16 @@ fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) {
     }
 }
 fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
-    let mut client = Client::connect(config.0.as_str(), NoTls).unwrap();
+    let mut client = match Client::connect(config.0.as_str(), NoTls) {
+        Ok(c) => {
+            log_debug!("commit thread connected to database");
+            c
+        }
+        Err(e) => {
+            log_error!("commit thread failed to connect to database: {}", e);
+            panic!("commit_thread: database connection failed: {}", e);
+        }
+    };
     let commit_size = config.1 as usize;
 
     loop {
@@ -81,6 +91,8 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
     }
 }
 fn main() {
+    logging::init_from_env();
+
     // Retrieve Config
     let mut start_seed = env_int!("START_SEED", 0);
     let end_seed = env_int!("END_SEED", 10_000);
@@ -92,6 +104,12 @@ fn main() {
     let checkpoint_file = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
 
     let conf = (get_db_str(), commit_count);
+
+    log_info!(
+        "config: seeds {}..{}, workers={}, writers={}, commit_count={}, channel_size={}",
+        start_seed, end_seed, worker_count, writer_count, commit_count, channel_size
+    );
+    log_debug!("checkpoint file: {}", checkpoint_file);
 
     assert!(start_seed < end_seed, "START_SEED ({}) must be less than END_SEED ({})", start_seed, end_seed);
     assert!(worker_count < end_seed, "WORKER_THREADS ({}) must be less than END_SEED ({})", worker_count, end_seed);
@@ -108,13 +126,15 @@ fn main() {
         let resume_offset = (min_checkpoint + max_buffer as i32).max(0);
         if resume_offset > 0 {
             if start_seed + resume_offset < end_seed {
-                println!("Resuming from checkpoint: advancing start_seed by {} to {}", resume_offset, start_seed + resume_offset);
+                log_info!("resuming from checkpoint: advancing start_seed by {} to {}", resume_offset, start_seed + resume_offset);
                 start_seed += resume_offset;
             } else {
-                println!("Checkpoint indicates all work done ({} seeds completed), skipping generation.", resume_offset);
+                log_info!("checkpoint indicates all work done ({} seeds completed), skipping generation", resume_offset);
                 return;
             }
         }
+    } else {
+        log_debug!("no checkpoint file found, starting fresh");
     }
 
 
@@ -124,6 +144,8 @@ fn main() {
     let all_seeds = start_seed..end_seed;
     let workloads = split_chunks(all_seeds, worker_count);
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(channel_size as usize);
+
+    log_info!("launching {} worker threads and {} writer threads", worker_count, writer_count);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
@@ -183,6 +205,16 @@ fn main() {
     }
 
     let elapsed = start.elapsed();
-    let per_second = (end_seed - start_seed) as f32 / elapsed.as_secs() as f32;
-    println!("seeds/sec: {:?}", per_second);
+    let secs = elapsed.as_secs_f32();
+    let per_second = if secs > 0.0 {
+        (end_seed - start_seed) as f32 / secs
+    } else {
+        0.0
+    };
+    log_info!(
+        "done: generated {} seeds in {:.2}s ({:.0} seeds/sec)",
+        end_seed - start_seed,
+        secs,
+        per_second
+    );
 }
