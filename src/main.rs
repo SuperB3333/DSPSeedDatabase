@@ -82,7 +82,7 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
 }
 fn main() {
     // Retrieve Config
-    let start_seed = env_int!("START_SEED", 0);
+    let mut start_seed = env_int!("START_SEED", 0);
     let end_seed = env_int!("END_SEED", 10_000);
     let worker_count = env_int!("WORKER_THREADS", 8);
     let writer_count = env_int!("WRITER_THREADS", 4);
@@ -96,6 +96,26 @@ fn main() {
     assert!(start_seed < end_seed);
     assert!(worker_count < end_seed);
     assert!(worker_count < 32);
+
+    // Resume from checkpoint if available
+    if let Ok(cp_data) = std::fs::read_to_string(&checkpoint_file) {
+        let max_buffer = channel_size + commit_count * writer_count;
+        let min_checkpoint = cp_data
+            .lines()
+            .filter_map(|line| line.trim().parse::<i32>().ok())
+            .min()
+            .unwrap_or(0);
+        let resume_offset = (min_checkpoint + max_buffer as i32).max(0);
+        if resume_offset > 0 {
+            if start_seed + resume_offset < end_seed {
+                println!("Resuming from checkpoint: advancing start_seed by {} to {}", resume_offset, start_seed + resume_offset);
+                start_seed += resume_offset;
+            } else {
+                println!("Checkpoint indicates all work done ({} seeds completed), skipping generation.", resume_offset);
+                return;
+            }
+        }
+    }
 
 
     let start = Instant::now();
@@ -132,6 +152,7 @@ fn main() {
         let mut cfile = OpenOptions::new()
             .write(true)
             .create(true)
+            .truncate(true)
             .open(&checkpoint_file)
             .unwrap();
         PROGRESS_WORKERS
