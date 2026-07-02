@@ -32,9 +32,24 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
             stars.push_str(format!("{}{}", solar_system.get_avg_vein(ore) as i32, if index == 13 {"\n"} else {","}).as_str());
         }
 
+        let mut satellite_counts = std::collections::HashMap::new();
         for planet in solar_system.get_planets() {
-            let satellite_count = if !planet.is_gas_giant() { 0 } else {
-                -1 //todo implement
+            if planet.has_orbit_around() {
+                *satellite_counts.entry(planet.orbit_around.borrow().as_ref().unwrap().index).or_insert(0) += 1;
+            }
+        }
+
+        for planet in solar_system.get_planets() {
+            let satellite_count = if planet.is_gas_giant() {
+                satellite_counts.get(&planet.index).copied().unwrap_or(0)
+            } else {
+                0
+            };
+
+            let orbiting = if planet.has_orbit_around() {
+                planet.orbit_around.borrow().as_ref().unwrap().index as i32
+            } else {
+                -1i32
             };
 
 
@@ -52,9 +67,10 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
                 }
             }
 
-            planets.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},{},",
+            planets.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},{},{},",
                                      star_id,
                                      planet.index,
+                                     orbiting,
                                      planet.get_theme().water_item_id,
                                      planet.get_type() == &PlanetType::Gas,
                                      planet.get_orbital_radius(),
