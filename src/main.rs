@@ -40,31 +40,43 @@ fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) {
     }
 }
 fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
-    let mut star_client = Client::connect(config.0.as_str(), NoTls).unwrap();
-    let mut planet_client = Client::connect(config.0.as_str(), NoTls).unwrap();
+    let mut client = Client::connect(config.0.as_str(), NoTls).unwrap();
+    let commit_size = config.1 as usize;
 
-    let mut scpy = star_client.copy_in(COPY_STAR).unwrap();
-    let mut pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
-    let mut i = 0;
     loop {
-        i += 1;
-        let (star, planet) = match rec.recv_timeout(Duration::new(1,0)) {
-            Ok(msg) => msg,
-            Err(_) => break,
-        };
-        scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
-        pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
-        if i % config.1 == 0 {
-            COMMITTED_SEEDS.fetch_add(config.1, std::sync::atomic::Ordering::SeqCst);
-            scpy.finish().unwrap();
-            pcpy.finish().unwrap();
-            scpy = star_client.copy_in(COPY_STAR).unwrap();
-            pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
+        let mut batch: Vec<(String, String)> = Vec::with_capacity(commit_size);
+        for _ in 0..commit_size {
+            match rec.recv_timeout(Duration::new(1, 0)) {
+                Ok(msg) => batch.push(msg),
+                Err(_) => break,
+            }
         }
 
+        if batch.is_empty() {
+            break;
+        }
+
+        let mut txn = client.transaction().unwrap();
+
+        {
+            let mut scpy = txn.copy_in(COPY_STAR).unwrap();
+            for (star, _) in &batch {
+                scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
+            }
+            scpy.finish().unwrap();
+        }
+
+        {
+            let mut pcpy = txn.copy_in(COPY_PLANET).unwrap();
+            for (_, planet) in &batch {
+                pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
+            }
+            pcpy.finish().unwrap();
+        }
+
+        txn.commit().unwrap();
+        COMMITTED_SEEDS.fetch_add(batch.len() as i32, std::sync::atomic::Ordering::SeqCst);
     }
-    scpy.finish().unwrap();
-    pcpy.finish().unwrap();
 }
 fn main() {
     // Retrieve Config
