@@ -7,13 +7,13 @@ pub struct DspRandom {
 impl DspRandom {
     pub fn new(seed: i32) -> Self {
         let mut seed_array = [0; 56];
-        let mut num1 = 161803398 - seed.abs();
+        let mut num1 = 161803398_i32.wrapping_sub(seed.wrapping_abs());
         seed_array[55] = num1;
         let mut num2 = 1;
         for index1 in 1..55 {
             let index2 = (21 * index1) % 55;
             seed_array[index2] = num2;
-            num2 = num1 - num2;
+            num2 = num1.wrapping_sub(num2);
             if num2 < 0 {
                 num2 += i32::MAX;
             }
@@ -45,7 +45,7 @@ impl DspRandom {
         if self.inextp >= 56 {
             self.inextp = 1
         }
-        let mut num = self.seed_array[self.inext] - self.seed_array[self.inextp];
+        let mut num = self.seed_array[self.inext].wrapping_sub(self.seed_array[self.inextp]);
         if num < 0 {
             num += i32::MAX;
         }
