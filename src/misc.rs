@@ -1,3 +1,4 @@
+use std::io::Write;
 use std::ops::Range;
 use crate::macros::env_str;
 
@@ -17,6 +18,40 @@ pub fn split_chunks(r: Range<i32>, chunks: i32) -> Vec<Range<i32>> {
         cur += add;
     }
     out
+}
+
+/// Atomically persist per-worker checkpoint values.
+///
+/// The values are written to a sibling temp file (`<path>.tmp`) which is then
+/// flushed, fsync'd, and renamed over the real checkpoint file. On any sane
+/// filesystem `rename` is atomic, so a reader (including a resuming run) always
+/// observes either the previous complete checkpoint or the new complete one,
+/// never a truncated/partial file. The written values are identical to the
+/// previous in-place implementation, so resume behaviour is unchanged.
+pub fn write_checkpoint_atomic(path: &str, values: &[i32]) -> std::io::Result<()> {
+    let tmp_path = format!("{}.tmp", path);
+    {
+        let mut f = std::fs::OpenOptions::new()
+            .write(true)
+            .create(true)
+            .truncate(true)
+            .open(&tmp_path)?;
+        let mut buf = String::with_capacity(values.len() * 8);
+        for v in values {
+            buf.push_str(itoa_line(*v).as_str());
+        }
+        f.write_all(buf.as_bytes())?;
+        f.flush()?;
+        f.sync_all()?;
+    }
+    std::fs::rename(&tmp_path, path)
+}
+
+#[inline]
+fn itoa_line(v: i32) -> String {
+    let mut s = v.to_string();
+    s.push('\n');
+    s
 }
 
 pub fn get_db_str() -> String {

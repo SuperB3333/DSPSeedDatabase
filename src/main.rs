@@ -13,7 +13,6 @@ use std::{
     ops::Range,
     thread
 };
-use std::fs::OpenOptions;
 use std::io::stdout;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering::{Relaxed};
@@ -171,18 +170,13 @@ fn main() {
 
     loop {
         let max_buffer = channel_size + commit_count * writer_count;
-        let mut cfile = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .truncate(true)
-            .open(&checkpoint_file)
-            .unwrap();
-        PROGRESS_WORKERS
+        let checkpoint_values: Vec<i32> = PROGRESS_WORKERS
             .iter()
             .map(|i| i.load(Relaxed) - max_buffer)
-            .for_each(|x| {
-                writeln!(cfile, "{}", x).unwrap();
-            });
+            .collect();
+        if let Err(e) = write_checkpoint_atomic(&checkpoint_file, &checkpoint_values) {
+            log_warn!("failed to write checkpoint '{}': {}", checkpoint_file, e);
+        }
 
 
 
