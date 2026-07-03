@@ -5,7 +5,7 @@ mod misc;
 mod metrics;
 
 use postgres::{Client, NoTls};
-use crossbeam_channel::{bounded, Receiver, Sender};
+use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender};
 use std::{
     time::{Duration, Instant},
     io::Write,
@@ -50,7 +50,8 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
         i += 1;
         let (star, planet) = match rec.recv_timeout(Duration::new(1,0)) {
             Ok(msg) => msg,
-            Err(_) => break,
+            Err(RecvTimeoutError::Disconnected) => break,
+            Err(RecvTimeoutError::Timeout) => panic!("rec timeout: Writers broken?"),
         };
         scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
         pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
