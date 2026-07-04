@@ -105,6 +105,18 @@
   Postgres / non-TTY subagent shell): TTY render test, NO_TUI redirected out.log/err.log check,
   LOG_LEVEL=error suppression run. Deviations: none.
 
+- **Order 05 — DONE.** File created: `score_seeds.py` (repo root) only; `git status` shows
+  exactly one new file (target match). Frozen zone untouched (`src/**`, `create_database.py`,
+  `parse_rule.py`, `rules.py`, `server/**` read-only). Validation run by orchestrator:
+  `ast.parse` PASS; `--explain --weight ore_oil=2 --weight gas_giants=1` prints CTE SQL, EXIT 0;
+  `--explain` with no weights defaults to ore_iron=1 + hint to STDERR, EXIT 0; `--weight
+  bogus_metric=1` EXIT 2 with full valid-metric list. Verified in source: `set_session(readonly=True)`
+  (line 308), lazy `import psycopg2` (line 297, so --explain needs no DB), sentinel guard
+  `SUM(GREATEST(p.estimate_<vein>,0))` (line 54), `__main__` guard (line 359), 14 ore metrics from
+  misc.py `veins`, DB defaults mirror src/misc.rs. SKIPPED (no psycopg2 / no local Postgres):
+  DB-executing `--top 10 --seed-range 0 100`, hand cross-check of ore_iron, read-only SELECT-user
+  proof. Deviations: none behavioral (—explain appends concrete param values as SQL comments).
+
 - Order 04 DONE: `BENCHMARK=1` env flag; sink-thread swap at spawn time (worker/commit bodies
   frozen); skips checkpoint read+write and all PG access; BENCH_BYTES counter doubles as a
   determinism fingerprint; final `benchmark:` log line with seeds/sec + MB/s. main.rs only.
