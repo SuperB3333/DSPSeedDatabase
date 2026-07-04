@@ -75,6 +75,22 @@
   `python create_database.py`, `--indexes` run, `\d` type inspection, pg_indexes count,
   Rust end-to-end seed run. Deviations: none.
 
+- **Order 02 — DONE** (succeeded on retry; first attempt produced no changes/empty report).
+  Files changed: `src/main.rs`, `src/misc.rs` only (target match confirmed via
+  `git diff --stat`). Fixed pre-existing E0425 (`write_checkpoint_atomic` now imported).
+  Validation: `cargo check` PASS, `cargo build --release` PASS (only 2 pre-existing warnings
+  in FROZEN `src/algorithm/worldgen/galaxy_gen.rs`, not introduced/not fixed). Frozen zone
+  intact: `src/algorithm/**` + `src/generate_csv.rs` untouched; `worker_thread` per-seed body
+  verified byte-identical to HEAD. Implemented: v2 checkpoint (`WorkerCheckpoint`/`Checkpoint`
+  types, header + per-worker `cs ce watermark` lines, tmp+fsync+rename retained), `read_checkpoint`
+  (None=absent/fresh, Err=unparseable/fresh, Some=parsed), mismatch → log_error+exit(1) before any
+  DB/threads, all-done → "all work done"+return, per-worker resume `watermark..chunk_end` (no
+  re-split), Invariant-B duplicate purge (planets then stars, i32 params), 5s cadence (`tick % 50`),
+  clean-completion checkpoint (watermark=chunk_end). SKIPPED (no local Postgres, confirmed via
+  Test-NetConnection localhost:5432 → false): Run1 kill/inspect, Run2 resume + 3 SQL COUNT checks,
+  Run3 all-done, WORKER_THREADS mismatch exit, kill-during-write torn-file check. Deviations:
+  DELETE bind params typed i32 to match INT PK columns (semantically identical).
+
 - Order 04 DONE: `BENCHMARK=1` env flag; sink-thread swap at spawn time (worker/commit bodies
   frozen); skips checkpoint read+write and all PG access; BENCH_BYTES counter doubles as a
   determinism fingerprint; final `benchmark:` log line with seeds/sec + MB/s. main.rs only.

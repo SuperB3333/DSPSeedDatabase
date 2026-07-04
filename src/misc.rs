@@ -20,15 +20,42 @@ pub fn split_chunks(r: Range<i32>, chunks: i32) -> Vec<Range<i32>> {
     out
 }
 
-/// Atomically persist per-worker checkpoint values.
+/// One worker's recorded chunk plus committed watermark.
 ///
-/// The values are written to a sibling temp file (`<path>.tmp`) which is then
+/// `start`/`end` are the exact `Range<i32>` (chunk) that worker was assigned.
+/// `watermark` is the highest `seed + 1` in that chunk that is *guaranteed*
+/// committed to the database (conservative — see the monitor loop in main.rs).
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct WorkerCheckpoint {
+    pub start: i32,
+    pub end: i32,
+    pub watermark: i32,
+}
+
+/// Parsed v2 checkpoint file.
+#[derive(Clone, Debug, PartialEq, Eq)]
+pub struct Checkpoint {
+    pub start_seed: i32,
+    pub end_seed: i32,
+    pub worker_count: i32,
+    pub workers: Vec<WorkerCheckpoint>,
+}
+
+/// Atomically persist a v2 checkpoint.
+///
+/// The payload is written to a sibling temp file (`<path>.tmp`) which is then
 /// flushed, fsync'd, and renamed over the real checkpoint file. On any sane
 /// filesystem `rename` is atomic, so a reader (including a resuming run) always
 /// observes either the previous complete checkpoint or the new complete one,
-/// never a truncated/partial file. The written values are identical to the
-/// previous in-place implementation, so resume behaviour is unchanged.
-pub fn write_checkpoint_atomic(path: &str, values: &[i32]) -> std::io::Result<()> {
+/// never a truncated/partial file. If a kill occurs mid-write, only the `.tmp`
+/// file may be left behind; the reader ignores it.
+///
+/// Format:
+/// ```text
+/// v2 <start_seed> <end_seed> <worker_count>
+/// <chunk_start> <chunk_end> <watermark>     # one line per worker
+/// ```
+pub fn write_checkpoint_atomic(path: &str, cp: &Checkpoint) -> std::io::Result<()> {
     let tmp_path = format!("{}.tmp", path);
     {
         let mut f = std::fs::OpenOptions::new()
@@ -36,9 +63,13 @@ pub fn write_checkpoint_atomic(path: &str, values: &[i32]) -> std::io::Result<()
             .create(true)
             .truncate(true)
             .open(&tmp_path)?;
-        let mut buf = String::with_capacity(values.len() * 8);
-        for v in values {
-            buf.push_str(itoa_line(*v).as_str());
+        let mut buf = String::with_capacity(64 + cp.workers.len() * 24);
+        buf.push_str(&format!(
+            "v2 {} {} {}\n",
+            cp.start_seed, cp.end_seed, cp.worker_count
+        ));
+        for w in &cp.workers {
+            buf.push_str(&format!("{} {} {}\n", w.start, w.end, w.watermark));
         }
         f.write_all(buf.as_bytes())?;
         f.flush()?;
@@ -47,11 +78,56 @@ pub fn write_checkpoint_atomic(path: &str, values: &[i32]) -> std::io::Result<()
     std::fs::rename(&tmp_path, path)
 }
 
+/// Read + parse a v2 checkpoint file.
+///
+/// Returns:
+/// - `Ok(Some(cp))`  — a well-formed v2 checkpoint was read.
+/// - `Ok(None)`      — the file does not exist (fresh start).
+/// - `Err(msg)`      — the file exists but is not a parseable v2 checkpoint;
+///                     the caller treats this as a fresh start (with a debug log).
+pub fn read_checkpoint(path: &str) -> Result<Option<Checkpoint>, String> {
+    let data = match std::fs::read_to_string(path) {
+        Ok(d) => d,
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => return Ok(None),
+        Err(e) => return Err(format!("cannot read checkpoint file: {}", e)),
+    };
+
+    let mut lines = data.lines();
+    let header = lines.next().ok_or_else(|| "empty checkpoint file".to_string())?;
+    let mut h = header.split_whitespace();
+    match h.next() {
+        Some("v2") => {}
+        other => return Err(format!("unexpected checkpoint version: {:?}", other)),
+    }
+    let start_seed = parse_field(h.next(), "start_seed")?;
+    let end_seed = parse_field(h.next(), "end_seed")?;
+    let worker_count = parse_field(h.next(), "worker_count")?;
+
+    let mut workers = Vec::with_capacity(worker_count.max(0) as usize);
+    for _ in 0..worker_count {
+        let line = lines
+            .next()
+            .ok_or_else(|| "checkpoint has fewer worker lines than worker_count".to_string())?;
+        let mut p = line.split_whitespace();
+        let start = parse_field(p.next(), "chunk_start")?;
+        let end = parse_field(p.next(), "chunk_end")?;
+        let watermark = parse_field(p.next(), "watermark")?;
+        workers.push(WorkerCheckpoint { start, end, watermark });
+    }
+
+    Ok(Some(Checkpoint {
+        start_seed,
+        end_seed,
+        worker_count,
+        workers,
+    }))
+}
+
 #[inline]
-fn itoa_line(v: i32) -> String {
-    let mut s = v.to_string();
-    s.push('\n');
-    s
+fn parse_field(v: Option<&str>, name: &str) -> Result<i32, String> {
+    v.ok_or_else(|| format!("missing checkpoint field: {}", name))?
+        .parse::<i32>()
+        .map_err(|e| format!("bad checkpoint field {}: {}", name, e))
 }
 
 pub fn get_db_str() -> String {
