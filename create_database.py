@@ -1,6 +1,7 @@
 import psycopg2
+import argparse
 
-from misc import SpectrType, veins
+from misc import veins
 
 # --- CONFIGURATION ---
 DB_HOST = "localhost"
@@ -13,81 +14,95 @@ def create_schema():
     conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
     cursor = conn.cursor()
 
-    c = lambda *_: "" # Return an empty string. Used for comments in the long sql queries
     print("--- Recreating Database Schema ---")
 
-    # 1. Clean up old tables
+    # Clean up old tables
     cursor.execute("DROP TABLE IF EXISTS planets;")
     cursor.execute("DROP TABLE IF EXISTS stars;")
 
+    ore_cols = ",\n".join([f"ore_{ore} INT" for ore in veins])
 
-    # 3. Create star table
-    dist_cols = '\n'.join([f"dist_{spectr} FLOAT," for spectr in SpectrType.keys()]) + "#TODO implement this"
-    ore_cols = ',\n'.join([f"ore_{vein} INT" for vein in veins])
     cursor.execute(f"""
-        CREATE TABLE stars (
-            id INT UNIQUE PRIMARY KEY,
+        CREATE UNLOGGED TABLE stars (
+            id INT PRIMARY KEY,
             seed INT,
-            
-            start_dist FLOAT,
-            star_index INT,
-            luminosity FLOAT,
             dyson_radius INT,
-            type INT, {c("Needs an enum to get the star type")}
-            spectr INT, {c("same here")}
-            
-            {c(dist_cols)}
-            {ore_cols}  {c("Add an int value for each of the ores")}
+            {ore_cols},
+            start_dist REAL,
+            luminosity REAL,
+            star_index SMALLINT,
+            type SMALLINT,
+            spectr SMALLINT
         );
     """)
-    estimate_cols = "\n".join([f"estimate_{ore} INT," for ore in veins])
-    min_cols = "\n".join([f"min_{ore} INT," for ore in veins])
-    max_cols = ",\n".join([f"max_{ore} INT" for ore in veins])
+
+    vein_cols = ",\n".join(
+        [f"estimate_{ore} INT" for ore in veins] +
+        [f"min_{ore} INT" for ore in veins] +
+        [f"max_{ore} INT" for ore in veins]
+    )
+
     cursor.execute(f"""
-        CREATE TABLE planets (
+        CREATE UNLOGGED TABLE planets (
             star_id INT,
-            
-            index INT,
-            orbiting INT, {c("Index of gas giant, -1 if orbit around sun")}
-            water_item INT, {c("Water Item ID")}
+            {vein_cols},
+            sun_distance REAL,
+            temperature REAL,
+            gas_h REAL,
+            gas_d REAL,
+            gas_i REAL,
+            index SMALLINT,
+            orbiting SMALLINT,
+            water_item SMALLINT,
+            satellites SMALLINT,
+            theme_id SMALLINT,
             gas_giant BOOL,
-            sun_distance FLOAT,
-            inside_ds BOOL, {c("Whether the planet lies inside the Dyson sphere or not")}
-            satellites INT, {c("Amount od satellites")}
+            inside_ds BOOL,
             tidal_lock BOOL,
-            temperature FLOAT,
-            theme_id INT,
-            
-            gas_h FLOAT, {c("Hydrogen")}
-            gas_d FLOAT, {c("Deuterium")}
-            gas_i FLOAT, {c("Fireice")}
-            
-            {estimate_cols}            
-            {min_cols}            
-            {max_cols}            
             UNIQUE(star_id, index)
         );
     """)
 
-    # 5. Create Indexes for Speed
-    print("Creating Indexes... (Can be optimized for specific patterns)")
-    def index(table: str, val: str) -> None:
+    conn.commit()
+    cursor.close()
+    conn.close()
+
+    print("Schema created. Tables are UNLOGGED for faster writes; "
+          "run ALTER TABLE stars SET LOGGED; ALTER TABLE planets SET LOGGED; "
+          "if durability is desired.")
+
+
+def create_indexes():
+    conn = psycopg2.connect(host=DB_HOST, database=DB_NAME, user=DB_USER, password=DB_PASS)
+    cursor = conn.cursor()
+
+    print("Creating Indexes...")
+    def index(table, val):
         cursor.execute(f"CREATE INDEX idx_{table}_{val} ON {table}({val});")
 
-    index("stars", "id")
     index("planets", "star_id")
-
     index("stars", "seed")
     index("stars", "star_index")
     index("stars", "dyson_radius")
     index("stars", "luminosity")
     index("stars", "type")
     index("stars", "spectr")
-
     index("planets", "gas_giant")
     index("planets", "temperature")
 
     conn.commit()
+    cursor.close()
+    conn.close()
+
+    print("Indexes created.")
+
 
 if __name__ == "__main__":
-    create_schema()
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--indexes", action="store_true", help="Create indexes only")
+    args = parser.parse_args()
+
+    if args.indexes:
+        create_indexes()
+    else:
+        create_schema()
