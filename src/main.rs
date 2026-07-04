@@ -8,21 +8,23 @@ use postgres::{Client, NoTls};
 use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender};
 use std::{
     time::{Duration, Instant},
-    io::Write,
+    io::{Write, stdout},
     ops::Range,
-    thread
+    thread,
+    fs::OpenOptions,
+    sync::atomic::{
+        AtomicI32,
+        Ordering::Relaxed
+    }
 };
-use std::fs::OpenOptions;
-use std::io::stdout;
-use std::sync::atomic::AtomicI32;
-use std::sync::atomic::Ordering::{Relaxed};
 use crossterm::ExecutableCommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
-use generate_csv::gen_formatted;
-use macros::env_int;
-use misc::{split_chunks, COPY_PLANET, COPY_STAR, get_db_str};
-use crate::macros::env_str;
-use crate::metrics::write_metrics;
+use crate::{
+    generate_csv::gen_formatted,
+    misc::{split_chunks, COPY_PLANET, COPY_STAR, get_db_str},
+    macros::{env_str, env_int},
+    metrics::write_metrics
+};
 
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
