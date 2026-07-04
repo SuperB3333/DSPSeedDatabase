@@ -16,6 +16,7 @@ use std::{
 use std::io::stdout;
 use std::io::IsTerminal;
 use std::sync::atomic::AtomicI32;
+use std::sync::atomic::AtomicU64;
 use std::sync::atomic::Ordering::{Relaxed};
 use crossterm::ExecutableCommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
@@ -30,6 +31,8 @@ const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
 static COMMITTED_SEEDS: AtomicI32 = AtomicI32::new(0);
+
+static BENCH_BYTES: AtomicU64 = AtomicU64::new(0);
 
 static PROGRESS_WORKERS: [AtomicI32; 32] = [const { AtomicI32::new(0) }; 32];
 
@@ -91,6 +94,17 @@ fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
         COMMITTED_SEEDS.fetch_add(batch.len() as i32, std::sync::atomic::Ordering::SeqCst);
     }
 }
+// Benchmark-only channel consumer: drains the exact same producer stream as the
+// writers but touches no Postgres and no checkpoint. Isolates pure-generation
+// CPU throughput. Plain recv() exits on Disconnected once main drops the sender
+// — identical shutdown path to commit_thread. COMMITTED_SEEDS increments keep the
+// Order-03 TUI/progress reporting working unmodified.
+fn bench_sink_thread(rec: Receiver<(String, String)>) {
+    while let Ok((s, p)) = rec.recv() {
+        BENCH_BYTES.fetch_add((s.len() + p.len()) as u64, Relaxed);
+        COMMITTED_SEEDS.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
+    }
+}
 fn main() {
     logging::init_from_env();
 
@@ -104,7 +118,20 @@ fn main() {
 
     let checkpoint_file = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
 
-    let conf = (get_db_str(), commit_count);
+    // Benchmark mode: pure-generation throughput. Disables Postgres and all
+    // checkpoint state I/O so a bench run can never corrupt real-run state.
+    let benchmark = env_str!("BENCHMARK", "0") == "1";
+    if benchmark {
+        log_info!("benchmark mode: DB and checkpointing disabled");
+    }
+
+    // In normal mode only, build the DB connection config. In benchmark mode we
+    // never call get_db_str() so no PG credentials/connection are touched.
+    let conf: Option<(String, i32)> = if benchmark {
+        None
+    } else {
+        Some((get_db_str(), commit_count))
+    };
 
     log_info!(
         "config: seeds {}..{}, workers={}, writers={}, commit_count={}, channel_size={}",
@@ -124,6 +151,7 @@ fn main() {
     // Resume from checkpoint if available. `workloads` are the per-worker
     // ranges actually fed to worker threads below.
     let workloads: Vec<Range<i32>>;
+    if !benchmark {
     match read_checkpoint(&checkpoint_file) {
         Ok(Some(cp)) => {
             // Header must match current config exactly, else we would either
@@ -160,7 +188,7 @@ fn main() {
             //   star_id = seed*100 + index, index < 64, stride 100.
             log_info!("resuming from checkpoint; purging rewound windows before restart");
             {
-                let mut purge_client = match Client::connect(conf.0.as_str(), NoTls) {
+                let mut purge_client = match Client::connect(conf.as_ref().unwrap().0.as_str(), NoTls) {
                     Ok(c) => c,
                     Err(e) => {
                         log_error!("resume purge: failed to connect to database: {}", e);
@@ -201,6 +229,11 @@ fn main() {
             workloads = split_chunks(start_seed..end_seed, worker_count);
         }
     }
+    } else {
+        // Benchmark mode: never read the checkpoint file. Always start fresh
+        // across the full seed range.
+        workloads = split_chunks(start_seed..end_seed, worker_count);
+    }
 
 
     let start = Instant::now();
@@ -218,13 +251,21 @@ fn main() {
             worker_thread(thread_work, thread_sender, id);
         }))
     }
-    // Launch database threads
+    // Launch channel consumers. Same count in both modes (harmless extra sinks
+    // keep the loop structure identical). In benchmark mode we swap the consumer
+    // for bench_sink_thread — the producer (worker_thread) path is untouched.
     for _ in 0..writer_count {
         let thread_receiver = entry_reciever.clone();
-        let thread_conf = conf.clone();
-        commit_handles.push(thread::spawn(move || {
-            commit_thread(thread_receiver, thread_conf);
-        }))
+        if benchmark {
+            commit_handles.push(thread::spawn(move || {
+                bench_sink_thread(thread_receiver);
+            }))
+        } else {
+            let thread_conf = conf.as_ref().unwrap().clone();
+            commit_handles.push(thread::spawn(move || {
+                commit_thread(thread_receiver, thread_conf);
+            }))
+        }
     }
     // TUI is only enabled on an interactive stdout and when not explicitly disabled.
     let tui = std::io::stdout().is_terminal() && env_str!("NO_TUI", "0") != "1";
@@ -268,7 +309,10 @@ fn main() {
     // Cadence: UI ticks every 100ms; write a checkpoint every ~5s (tick % 50).
     let mut tick: u64 = 0;
     loop {
-        if tick % 50 == 0 {
+        // Order-02 periodic checkpoint write — skipped entirely in benchmark mode
+        // (no checkpoint file is ever touched). Order-03 progress reporting below
+        // still runs on the same cadence in both modes.
+        if !benchmark && tick % 50 == 0 {
             let cp = snapshot(false);
             if let Err(e) = write_checkpoint_atomic(&checkpoint_file, &cp) {
                 log_warn!("failed to write checkpoint '{}': {}", checkpoint_file, e);
@@ -309,10 +353,12 @@ fn main() {
 
     // Clean-completion checkpoint: all commit threads have joined, so everything
     // is committed. Record watermark == chunk_end for every worker so a later
-    // run sees "all work done".
-    let final_cp = snapshot(true);
-    if let Err(e) = write_checkpoint_atomic(&checkpoint_file, &final_cp) {
-        log_warn!("failed to write final checkpoint '{}': {}", checkpoint_file, e);
+    // run sees "all work done". Skipped in benchmark mode (no checkpoint I/O).
+    if !benchmark {
+        let final_cp = snapshot(true);
+        if let Err(e) = write_checkpoint_atomic(&checkpoint_file, &final_cp) {
+            log_warn!("failed to write final checkpoint '{}': {}", checkpoint_file, e);
+        }
     }
 
     let elapsed = start.elapsed();
@@ -322,10 +368,26 @@ fn main() {
     } else {
         0.0
     };
-    log_info!(
-        "done: generated {} seeds in {:.2}s ({:.0} seeds/sec)",
-        end_seed - start_seed,
-        secs,
-        per_second
-    );
+    if benchmark {
+        // Greppable benchmark result line. MB/MB-s derived from BENCH_BYTES, the
+        // total generated star+planet payload drained by the sink threads.
+        let total_bytes = BENCH_BYTES.load(Relaxed);
+        let mb = total_bytes as f64 / (1024.0 * 1024.0);
+        let mb_per_sec = if secs > 0.0 { mb / secs as f64 } else { 0.0 };
+        log_info!(
+            "benchmark: generated {} seeds in {:.2}s ({:.0} seeds/sec), {:.2} MB ({:.2} MB/s)",
+            end_seed - start_seed,
+            secs,
+            per_second,
+            mb,
+            mb_per_sec
+        );
+    } else {
+        log_info!(
+            "done: generated {} seeds in {:.2}s ({:.0} seeds/sec)",
+            end_seed - start_seed,
+            secs,
+            per_second
+        );
+    }
 }

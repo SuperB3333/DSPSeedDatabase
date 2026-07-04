@@ -116,8 +116,20 @@
   misc.py `veins`, DB defaults mirror src/misc.rs. SKIPPED (no psycopg2 / no local Postgres):
   DB-executing `--top 10 --seed-range 0 100`, hand cross-check of ore_iron, read-only SELECT-user
   proof. Deviations: none behavioral (—explain appends concrete param values as SQL comments).
+- **Order 04 — DONE** (executed & verified by orchestrator). Files changed: `src/main.rs` only
+  (target match via `git diff --stat`). Frozen zone intact: `src/misc.rs`, `src/algorithm/**`,
+  `src/generate_csv.rs` untouched; grep of added lines shows no edits to `worker_thread`/
+  `commit_thread` bodies or CSV/copy logic. Orders 02/03 preserved: normal path unchanged;
+  checkpoint resume/purge/in-loop-write/clean-completion all gated `if !benchmark`; Order-03
+  progress works in bench mode via COMMITTED_SEEDS. Validation: `cargo check`+`cargo build
+  --release` PASS (only 2 pre-existing FROZEN galaxy_gen.rs warnings). BENCHMARK=1 END_SEED=2000
+  run (NO Postgres) → completes, logs config+progress+`benchmark: generated 2000 seeds ...
+  141.78 MB (... MB/s)`. Determinism: 2 runs identical 141.78 MB fingerprint. checkpoints.txt
+  not created (Test-Path False before AND after). SKIPPED (no local Postgres, connect refused):
+  normal-mode DB regression seeds 0..100. Deviation: `conf` changed to `Option<(String,i32)>`
+  so get_db_str() is never called in bench mode (behavior-preserving in normal path).
 
-- Order 04 DONE: `BENCHMARK=1` env flag; sink-thread swap at spawn time (worker/commit bodies
+  [design ref] `BENCHMARK=1` env flag; sink-thread swap at spawn time (worker/commit bodies
   frozen); skips checkpoint read+write and all PG access; BENCH_BYTES counter doubles as a
   determinism fingerprint; final `benchmark:` log line with seeds/sec + MB/s. main.rs only.
 - Order 05 (seed scoring): standalone Python script (e.g. `score_seeds.py`) using psycopg2, reads
