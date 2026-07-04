@@ -91,6 +91,20 @@
   Run3 all-done, WORKER_THREADS mismatch exit, kill-during-write torn-file check. Deviations:
   DELETE bind params typed i32 to match INT PK columns (semantically identical).
 
+- **Order 03 — DONE** (subagent returned empty report; orchestrator verified all work directly).
+  Files changed: `src/main.rs`, `src/metrics.rs` only (target match via `git diff --stat`).
+  Validation: `cargo check` PASS, `cargo build --release` PASS (only 2 pre-existing FROZEN
+  galaxy_gen.rs lifetime warnings). Frozen zone intact: `worker_thread`/`commit_thread` bodies
+  byte-identical (grep of diff shows no edits inside them or the per-seed loop); `src/logging.rs`
+  untouched. Order-02 changes PRESERVED: `tick % 50` (~5s) cadence and v2 checkpoint/resume
+  imports intact. Implemented: TUI gating via `stdout().is_terminal() && NO_TUI!="1"` wrapping
+  Enter/Leave AlternateScreen + Hide/Show; raw-mode moved to TUI setup/teardown (removed from
+  write_metrics); single `Clear(All)`; real seeds/sec = COMMITTED_SEEDS/elapsed.max(1e-6);
+  `log_progress()` one-line stderr fallback via log_info! on `tick % 50` when `!tui`; percent
+  clamp `.min(100)` on cpu_percent & db_percent (fixes underflow panic). SKIPPED (no local
+  Postgres / non-TTY subagent shell): TTY render test, NO_TUI redirected out.log/err.log check,
+  LOG_LEVEL=error suppression run. Deviations: none.
+
 - Order 04 DONE: `BENCHMARK=1` env flag; sink-thread swap at spawn time (worker/commit bodies
   frozen); skips checkpoint read+write and all PG access; BENCH_BYTES counter doubles as a
   determinism fingerprint; final `benchmark:` log line with seeds/sec + MB/s. main.rs only.

@@ -14,6 +14,7 @@ use std::{
     thread
 };
 use std::io::stdout;
+use std::io::IsTerminal;
 use std::sync::atomic::AtomicI32;
 use std::sync::atomic::Ordering::{Relaxed};
 use crossterm::ExecutableCommand;
@@ -22,7 +23,8 @@ use generate_csv::gen_formatted;
 use macros::env_int;
 use misc::{split_chunks, write_checkpoint_atomic, read_checkpoint, Checkpoint, WorkerCheckpoint, COPY_PLANET, COPY_STAR, get_db_str};
 use crate::macros::env_str;
-use crate::metrics::write_metrics;
+use crate::metrics::{write_metrics, log_progress};
+use crossterm::terminal::{enable_raw_mode, disable_raw_mode};
 
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
@@ -224,9 +226,15 @@ fn main() {
             commit_thread(thread_receiver, thread_conf);
         }))
     }
+    // TUI is only enabled on an interactive stdout and when not explicitly disabled.
+    let tui = std::io::stdout().is_terminal() && env_str!("NO_TUI", "0") != "1";
+
     let mut stdout = stdout();
-    stdout.execute(EnterAlternateScreen).unwrap();
-    stdout.execute(crossterm::cursor::Hide).unwrap();
+    if tui {
+        enable_raw_mode().unwrap();
+        stdout.execute(EnterAlternateScreen).unwrap();
+        stdout.execute(crossterm::cursor::Hide).unwrap();
+    }
 
     // Build the current checkpoint snapshot from live per-worker progress.
     // For worker i with recorded chunk cs..ce and `generated` seeds produced:
@@ -268,14 +276,28 @@ fn main() {
         }
 
 
-        write_metrics(-1.0, end_seed - start_seed, entry_reciever.len() as i32).unwrap();
+        // Real seeds/sec from committed count over elapsed wall time.
+        let sps = COMMITTED_SEEDS.load(Relaxed) as f32 / start.elapsed().as_secs_f32().max(1e-6);
+        let goal = end_seed - start_seed;
+        let queue = entry_reciever.len() as i32;
+
+        if tui {
+            write_metrics(sps, goal, queue).unwrap();
+        } else if tick % 50 == 0 {
+            // stderr progress fallback on the same ~5s cadence; never when TUI is active.
+            log_progress(sps, goal, queue);
+        }
+
         thread::sleep(Duration::from_millis(100));
         tick += 1;
         if work_handles.iter().all(|i| i.is_finished()) { break }
     }
 
-    stdout.execute(crossterm::cursor::Show).unwrap();
-    stdout.execute(LeaveAlternateScreen).unwrap();
+    if tui {
+        stdout.execute(crossterm::cursor::Show).unwrap();
+        stdout.execute(LeaveAlternateScreen).unwrap();
+        disable_raw_mode().unwrap();
+    }
     // Wait for threads to finish
     for handle in work_handles {
         handle.join().unwrap(); // wait for all workers to finish
