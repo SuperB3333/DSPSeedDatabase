@@ -139,5 +139,17 @@
   (postgres compose → create_database.py → worker compose), checkpoint/resume semantics (v2 format
   from Order 02), benchmark + scoring usage, troubleshooting (PK violations, checkpoint mismatch,
   TUI garbage in docker logs → NO_TUI).
+- **Order 06 — DONE** (executed & verified by orchestrator; retry after subagent failed due to
+  filesystem access outside repo). File changed: `README.md` only (152 insertions, target match).
+  Orchestrator found and fixed one error: benchmark example used wrong binary name
+  (`dsp_seed_database` → `dsp_seed_finder`, Cargo.toml confirms package name). Validation:
+  `cargo build --release` PASS; Python syntax checks PASS (`ast.parse` for both scripts);
+  all 15 env vars grep-confirmed in `src/` (25 hits across main.rs, misc.rs, logging.rs,
+  metrics.rs); markdown well-formed (12 balanced code fences, 4 tables). Features verified
+  present and documented: NO_TUI, BENCHMARK, v2 checkpoint (atomic writes, watermarks, resume,
+  duplicate purge, invalidation), score_seeds.py (full CLI flags + examples), create_database.py
+  --indexes, server on port 62879. SKIPPED: none — this is docs-only, all validation was
+  offline grep/syntax/render checks. Deviations: only the binary-name typo fix above.
+
 - After each order's execution: record validation results + drift here.
 - Turn protocol (budget): write exactly one order per session, update this file, stop.
