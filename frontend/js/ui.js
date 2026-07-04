@@ -43,7 +43,7 @@ function renderRule(ruleData, parent = null, keyOrIndex = null, expectedCategory
             else if (p.type === 'boolean_optional') ruleData.params[p.name] = null;
             else if (p.type === 'enum') ruleData.params[p.name] = p.options[0].value !== undefined ? p.options[0].value : p.options[0];
             else if (p.type === 'number') ruleData.params[p.name] = 0;
-            else if (p.type === 'boolean') ruleData.params[p.name] = false;
+            else if (p.type === 'bool') ruleData.params[p.name] = false;
             else if (p.type === 'number_list') ruleData.params[p.name] = [];
         });
         updateUI();
@@ -105,7 +105,7 @@ function renderRule(ruleData, parent = null, keyOrIndex = null, expectedCategory
                 saveRuleset(window.ruleset);
             };
             paramDiv.appendChild(input);
-        } else if (paramMeta.type === 'boolean') {
+        } else if (paramMeta.type === 'bool') {
             const input = document.createElement('input');
             input.type = 'checkbox';
             input.checked = !!val;

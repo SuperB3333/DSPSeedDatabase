@@ -126,7 +126,7 @@ const RULE_METADATA = {
         category: "boolean"
     },
 
-    // --- Amount Rules (Can be used as boolean with operand/amount or raw amount) ---
+    // --- Amount Rules ---
     StarVeinRule: {
         name: "Star Vein Amount",
         params: [
@@ -185,7 +185,7 @@ const RULE_METADATA = {
     XDistRule: {
         name: "X Distance",
         params: [
-            { name: "all", type: "boolean", description: "All?" },
+            { name: "all", type: "bool", description: "All?" },
             ...AMOUNT_PARAMS
         ],
         categories: ["boolean", "amount"]
