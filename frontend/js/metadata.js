@@ -11,71 +11,91 @@ const SQL_OPERATORS = [
 ];
 const GAS_TYPES = ["Hydrogen", "Deuterium", "Fireice"];
 
+const AMOUNT_PARAMS = [
+    { name: "operand", type: "enum", options: SQL_OPERATORS, description: "Comparison operator", optional: true },
+    { name: "amount", type: "number", description: "Constant value", optional: true }
+];
+
 const RULE_METADATA = {
+    // --- Query Rules ---
     StarAmountRule: {
-        name: "Star Amount Rule (Top Level)",
+        name: "Star Amount Rule (Seed Finder)",
         params: [
-            { name: "ruleset", type: "rule", description: "A rule to filter stars" },
+            { name: "ruleset", type: "boolean", description: "Filter for stars" },
             { name: "amountStars", type: "number", description: "Number of stars" },
             { name: "operand", type: "enum", options: SQL_OPERATORS, description: "Comparison operator" }
         ],
-        category: "generic"
+        category: "query"
     },
-    AndRule: {
-        name: "AND (Logic)",
+    UnionRule: {
+        name: "UNION (Combine Queries)",
         params: [
-            { name: "rules", type: "rules", description: "Child rules" }
+            { name: "queries", type: "queries", description: "Child queries" }
         ],
-        category: "generic"
+        category: "query"
+    },
+    IntersectRule: {
+        name: "INTERSECT (Combine Queries)",
+        params: [
+            { name: "queries", type: "queries", description: "Child queries" }
+        ],
+        category: "query"
+    },
+    ExceptRule: {
+        name: "EXCEPT (Combine Queries)",
+        params: [
+            { name: "queries", type: "queries", description: "Child queries" }
+        ],
+        category: "query"
+    },
+
+    // --- Boolean Rules ---
+    AndRule: {
+        name: "AND",
+        params: [
+            { name: "rules", type: "booleans", description: "Child rules" }
+        ],
+        category: "boolean"
     },
     OrRule: {
-        name: "OR (Logic)",
+        name: "OR",
         params: [
-            { name: "rules", type: "rules", description: "Child rules" }
+            { name: "rules", type: "booleans", description: "Child rules" }
         ],
-        category: "generic"
+        category: "boolean"
     },
     NotRule: {
-        name: "NOT (Logic)",
+        name: "NOT",
         params: [
-            { name: "rule", type: "rule", description: "Child rule" }
+            { name: "rule", type: "boolean", description: "Child rule" }
         ],
-        category: "generic"
-    },
-    ComparisonRule: {
-        name: "Comparison (Value vs Number)",
-        params: [
-            { name: "rule", type: "amount_rule", description: "Value to compare" },
-            { name: "operand", type: "enum", options: SQL_OPERATORS, description: "Operator" },
-            { name: "amount", type: "number", description: "Constant value" }
-        ],
-        category: "generic"
+        category: "boolean"
     },
     StarTypeRule: {
         name: "Star Type",
         params: [
             { name: "starType", type: "enum", options: STAR_TYPES, description: "Type of star" }
         ],
-        category: "generic"
+        category: "boolean"
     },
     StarSpectrRule: {
         name: "Star Spectral Type",
         params: [
             { name: "spectr", type: "enum", options: SPECTR_TYPES, description: "Spectral type" }
         ],
-        category: "generic"
+        category: "boolean"
     },
     BirthRule: {
         name: "Birth Star/Planet",
         params: [],
-        category: "generic"
+        category: "boolean"
     },
     ThemeRule: {
         name: "Planet Theme",
         params: [
             { name: "targetIds", type: "number_list", description: "Theme IDs (comma separated)" }
         ],
-        category: "generic"
+        category: "boolean"
     },
     GasGiantRule: {
         name: "Gas Giant",
@@ -86,110 +106,119 @@ const RULE_METADATA = {
                 { value: true, label: "Ice Giant (Cold)" }
             ], description: "Type of gas giant" }
         ],
-        category: "generic"
+        category: "boolean"
     },
     PlanetInsideDysonRule: {
         name: "Planet Inside Dyson Sphere",
         params: [],
-        category: "generic"
+        category: "boolean"
     },
     TidalLockRule: {
         name: "Tidally Locked Planet",
         params: [],
-        category: "generic"
+        category: "boolean"
     },
     HasPlanetRule: {
         name: "Has Planet Matching",
         params: [
-            { name: "planetRule", type: "rule", description: "Filter for planets" }
+            { name: "planetRule", type: "boolean", description: "Filter for planets" }
         ],
-        category: "generic"
+        category: "boolean"
     },
-    // Amount Rules
+
+    // --- Amount Rules (Can be used as boolean with operand/amount or raw amount) ---
     StarVeinRule: {
         name: "Star Vein Amount",
         params: [
-            { name: "veinType", type: "enum", options: VEINS, description: "Vein type" }
+            { name: "veinType", type: "enum", options: VEINS, description: "Vein type" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     PlanetVeinRule: {
         name: "Planet Vein Amount",
         params: [
-            { name: "veinType", type: "enum", options: VEINS, description: "Vein type" }
+            { name: "veinType", type: "enum", options: VEINS, description: "Vein type" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     AvgVeinRule: {
         name: "Average Vein Amount",
         params: [
-            { name: "veinType", type: "enum", options: VEINS, description: "Vein type" }
+            { name: "veinType", type: "enum", options: VEINS, description: "Vein type" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     TotalAmountRule: {
         name: "Total Amount on Star (from planets)",
         params: [
-            { name: "planetaryRule", type: "amount_rule", description: "Planetary amount rule" }
+            { name: "planetaryRule", type: "amount", description: "Planetary amount rule" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     StartDistanceRule: {
         name: "Distance from Start",
-        params: [],
-        category: "amount"
+        params: [...AMOUNT_PARAMS],
+        categories: ["boolean", "amount"]
     },
     StarLuminosityRule: {
         name: "Star Luminosity",
-        params: [],
-        category: "amount"
+        params: [...AMOUNT_PARAMS],
+        categories: ["boolean", "amount"]
     },
     DysonRadiusRule: {
         name: "Dyson Sphere Radius",
-        params: [],
-        category: "amount"
+        params: [...AMOUNT_PARAMS],
+        categories: ["boolean", "amount"]
     },
     DistanceToSpectrRule: {
         name: "Distance to nearest Spectral Type",
         params: [
-            { name: "spectr", type: "enum", options: SPECTR_TYPES, description: "Spectral type" }
+            { name: "spectr", type: "enum", options: SPECTR_TYPES, description: "Spectral type" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     XDistRule: {
         name: "X Distance",
         params: [
-            { name: "all", type: "boolean", description: "All?" }
+            { name: "all", type: "boolean", description: "All?" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     PlanetWaterIdRule: {
         name: "Planet Water Item ID",
-        params: [],
-        category: "amount"
+        params: [...AMOUNT_PARAMS],
+        categories: ["boolean", "amount"]
     },
     GasRateRule: {
         name: "Gas Harvesting Rate",
         params: [
-            { name: "gasType", type: "enum", options: GAS_TYPES, description: "Gas type" }
+            { name: "gasType", type: "enum", options: GAS_TYPES, description: "Gas type" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     },
     PlanetSunDistanceRule: {
         name: "Planet Distance from Sun",
-        params: [],
-        category: "amount"
+        params: [...AMOUNT_PARAMS],
+        categories: ["boolean", "amount"]
     },
     SatelliteCountRule: {
         name: "Satellite Count",
-        params: [],
-        category: "amount"
+        params: [...AMOUNT_PARAMS],
+        categories: ["boolean", "amount"]
     },
     PlanetCountRule: {
         name: "Planet Count",
         params: [
-            { name: "planetRule", type: "rule_optional", description: "Filter for planets (optional)" }
+            { name: "planetRule", type: "boolean_optional", description: "Filter for planets (optional)" },
+            ...AMOUNT_PARAMS
         ],
-        category: "amount"
+        categories: ["boolean", "amount"]
     }
 };

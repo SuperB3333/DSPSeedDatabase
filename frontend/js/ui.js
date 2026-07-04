@@ -1,4 +1,14 @@
-function renderRule(ruleData, parent = null, keyOrIndex = null) {
+function getRulesByCategory(category) {
+    return Object.entries(RULE_METADATA)
+        .filter(([_, meta]) => {
+            if (meta.category === category) return true;
+            if (meta.categories && meta.categories.includes(category)) return true;
+            return false;
+        })
+        .map(([type, _]) => type);
+}
+
+function renderRule(ruleData, parent = null, keyOrIndex = null, expectedCategory = 'query', isNestedAmount = false) {
     const container = document.createElement('div');
     container.className = 'rule-node';
 
@@ -8,28 +18,15 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
     const select = document.createElement('select');
     select.className = 'rule-type-select';
 
-    const categories = {
-        "Generic Rules": [],
-        "Amount Rules": []
-    };
+    const allowedTypes = getRulesByCategory(expectedCategory);
 
-    for (const [type, meta] of Object.entries(RULE_METADATA)) {
-        if (meta.category === 'amount') categories["Amount Rules"].push(type);
-        else categories["Generic Rules"].push(type);
-    }
-
-    for (const [catName, types] of Object.entries(categories)) {
-        const group = document.createElement('optgroup');
-        group.label = catName;
-        types.forEach(type => {
-            const opt = document.createElement('option');
-            opt.value = type;
-            opt.textContent = RULE_METADATA[type].name;
-            if (type === ruleData.type) opt.selected = true;
-            group.appendChild(opt);
-        });
-        select.appendChild(group);
-    }
+    allowedTypes.forEach(type => {
+        const opt = document.createElement('option');
+        opt.value = type;
+        opt.textContent = RULE_METADATA[type].name;
+        if (type === ruleData.type) opt.selected = true;
+        select.appendChild(opt);
+    });
 
     select.onchange = () => {
         const newType = select.value;
@@ -38,10 +35,12 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
         ruleData.params = {};
         // Initialize default params
         newMeta.params.forEach(p => {
-            if (p.type === 'rules') ruleData.params[p.name] = [];
-            else if (p.type === 'rule') ruleData.params[p.name] = { type: 'AndRule', params: { rules: [] } };
-            else if (p.type === 'amount_rule') ruleData.params[p.name] = { type: 'StarVeinRule', params: { veinType: 'Iron' } };
-            else if (p.type === 'rule_optional') ruleData.params[p.name] = null;
+            if (p.type === 'queries') ruleData.params[p.name] = [];
+            else if (p.type === 'booleans') ruleData.params[p.name] = [];
+            else if (p.type === 'boolean') ruleData.params[p.name] = { type: 'AndRule', params: { rules: [] } };
+            else if (p.type === 'amount') ruleData.params[p.name] = { type: 'StarVeinRule', params: { veinType: 'Iron' } };
+            else if (p.type === 'query') ruleData.params[p.name] = { type: 'StarAmountRule', params: { ruleset: { type: 'AndRule', params: { rules: [] } }, amountStars: 1, operand: 'gte' } };
+            else if (p.type === 'boolean_optional') ruleData.params[p.name] = null;
             else if (p.type === 'enum') ruleData.params[p.name] = p.options[0].value !== undefined ? p.options[0].value : p.options[0];
             else if (p.type === 'number') ruleData.params[p.name] = 0;
             else if (p.type === 'boolean') ruleData.params[p.name] = false;
@@ -52,28 +51,25 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
 
     header.appendChild(select);
 
-    if (parent !== null) {
+    const isRoot = parent === null;
+    const isInList = Array.isArray(parent);
+
+    let isOptional = false;
+    if (parent && !isInList) {
+        const parentMeta = RULE_METADATA[parent.type];
+        const pMeta = parentMeta.params.find(p => p.name === keyOrIndex);
+        if (pMeta && pMeta.type === 'boolean_optional') isOptional = true;
+    }
+
+    if (!isRoot && (isInList || isOptional)) {
         const deleteBtn = document.createElement('button');
         deleteBtn.textContent = 'Delete';
         deleteBtn.className = 'delete-btn';
         deleteBtn.onclick = () => {
-            if (Array.isArray(parent)) {
+            if (isInList) {
                 parent.splice(keyOrIndex, 1);
             } else {
-                // If it's a mandatory named parameter, we probably shouldn't "delete" it,
-                // but for flexibility we can reset it to a default or null if optional.
-                // However, based on the requirement to delete rules, we'll allow it if it's in a list.
-                // For named params like 'ruleset' in StarAmountRule, maybe we just reset it.
-                // Let's check metadata if it's optional.
-                const parentRuleMeta = RULE_METADATA[parent.type];
-                const paramMeta = parentRuleMeta.params.find(p => p.name === keyOrIndex);
-                if (paramMeta.type === 'rule_optional') {
-                    parent.params[keyOrIndex] = null;
-                } else if (paramMeta.type === 'rule') {
-                    parent.params[keyOrIndex] = { type: 'AndRule', params: { rules: [] } };
-                } else if (paramMeta.type === 'amount_rule') {
-                    parent.params[keyOrIndex] = { type: 'StarVeinRule', params: { veinType: 'Iron' } };
-                }
+                parent.params[keyOrIndex] = null;
             }
             updateUI();
         };
@@ -87,6 +83,11 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
 
     const meta = RULE_METADATA[ruleData.type];
     meta.params.forEach(paramMeta => {
+        // Hide operand and amount if we are in a nested amount context
+        if (isNestedAmount && (paramMeta.name === 'operand' || paramMeta.name === 'amount')) {
+            return;
+        }
+
         const paramDiv = document.createElement('div');
         paramDiv.className = 'param-row';
         const label = document.createElement('label');
@@ -98,7 +99,7 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
         if (paramMeta.type === 'number') {
             const input = document.createElement('input');
             input.type = 'number';
-            input.value = val;
+            input.value = val === undefined ? 0 : val;
             input.oninput = () => {
                 ruleData.params[paramMeta.name] = parseFloat(input.value);
                 saveRuleset(window.ruleset);
@@ -107,7 +108,7 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
         } else if (paramMeta.type === 'boolean') {
             const input = document.createElement('input');
             input.type = 'checkbox';
-            input.checked = val;
+            input.checked = !!val;
             input.onchange = () => {
                 ruleData.params[paramMeta.name] = input.checked;
                 saveAndRefresh();
@@ -145,23 +146,43 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
                 saveRuleset(window.ruleset);
             };
             paramDiv.appendChild(input);
-        } else if (paramMeta.type === 'rules') {
+        } else if (paramMeta.type === 'queries') {
             const listContainer = document.createElement('div');
             listContainer.className = 'child-rules-list';
-            val.forEach((childRule, i) => {
-                listContainer.appendChild(renderRule(childRule, val, i));
+            (val || []).forEach((childRule, i) => {
+                listContainer.appendChild(renderRule(childRule, val, i, 'query'));
             });
             const addBtn = document.createElement('button');
-            addBtn.textContent = 'Add Child Rule';
+            addBtn.textContent = 'Add Query';
             addBtn.onclick = () => {
-                val.push({ type: 'AndRule', params: { rules: [] } });
+                if (!ruleData.params[paramMeta.name]) ruleData.params[paramMeta.name] = [];
+                ruleData.params[paramMeta.name].push({ type: 'StarAmountRule', params: { ruleset: { type: 'AndRule', params: { rules: [] } }, amountStars: 1, operand: 'gte' } });
                 updateUI();
             };
             paramDiv.appendChild(listContainer);
             paramDiv.appendChild(addBtn);
-        } else if (paramMeta.type === 'rule' || paramMeta.type === 'amount_rule') {
-            paramDiv.appendChild(renderRule(val, ruleData, paramMeta.name));
-        } else if (paramMeta.type === 'rule_optional') {
+        } else if (paramMeta.type === 'booleans') {
+            const listContainer = document.createElement('div');
+            listContainer.className = 'child-rules-list';
+            (val || []).forEach((childRule, i) => {
+                listContainer.appendChild(renderRule(childRule, val, i, 'boolean'));
+            });
+            const addBtn = document.createElement('button');
+            addBtn.textContent = 'Add Rule';
+            addBtn.onclick = () => {
+                if (!ruleData.params[paramMeta.name]) ruleData.params[paramMeta.name] = [];
+                ruleData.params[paramMeta.name].push({ type: 'AndRule', params: { rules: [] } });
+                updateUI();
+            };
+            paramDiv.appendChild(listContainer);
+            paramDiv.appendChild(addBtn);
+        } else if (paramMeta.type === 'query') {
+            paramDiv.appendChild(renderRule(val, ruleData, paramMeta.name, 'query'));
+        } else if (paramMeta.type === 'boolean') {
+            paramDiv.appendChild(renderRule(val, ruleData, paramMeta.name, 'boolean'));
+        } else if (paramMeta.type === 'amount') {
+            paramDiv.appendChild(renderRule(val, ruleData, paramMeta.name, 'amount', true));
+        } else if (paramMeta.type === 'boolean_optional') {
             if (val === null) {
                 const addBtn = document.createElement('button');
                 addBtn.textContent = 'Add Optional Rule';
@@ -171,9 +192,7 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
                 };
                 paramDiv.appendChild(addBtn);
             } else {
-                const wrap = document.createElement('div');
-                wrap.appendChild(renderRule(val, ruleData, paramMeta.name));
-                paramDiv.appendChild(wrap);
+                paramDiv.appendChild(renderRule(val, ruleData, paramMeta.name, 'boolean'));
             }
         }
 
@@ -188,10 +207,8 @@ function renderRule(ruleData, parent = null, keyOrIndex = null) {
 function updateUI() {
     const rootContainer = document.getElementById('rule-tree-container');
     rootContainer.innerHTML = '';
-    rootContainer.appendChild(renderRule(window.ruleset));
+    rootContainer.appendChild(renderRule(window.ruleset, null, null, 'query'));
     saveRuleset(window.ruleset);
-    // Optionally auto-compile on change
-    // compileRuleset();
 }
 
 function saveAndRefresh() {
@@ -207,11 +224,11 @@ function instantiateRule(ruleData) {
     const args = [];
     meta.params.forEach(p => {
         const val = ruleData.params[p.name];
-        if (p.type === 'rules') {
+        if (['queries', 'booleans'].includes(p.type)) {
             args.push((val || []).map(child => instantiateRule(child)));
-        } else if (p.type === 'rule' || p.type === 'amount_rule') {
+        } else if (['query', 'boolean', 'amount'].includes(p.type)) {
             args.push(instantiateRule(val));
-        } else if (p.type === 'rule_optional') {
+        } else if (p.type === 'boolean_optional') {
             args.push(val ? instantiateRule(val) : null);
         } else {
             args.push(val);

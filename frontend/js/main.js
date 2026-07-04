@@ -23,6 +23,10 @@ const DEFAULT_RULESET = {
 
 function init() {
     window.ruleset = loadRuleset() || DEFAULT_RULESET;
+    // Check if the root is a query rule
+    if (!RULE_METADATA[window.ruleset.type] || RULE_METADATA[window.ruleset.type].category !== 'query') {
+        window.ruleset = DEFAULT_RULESET;
+    }
     updateUI();
 }
 
