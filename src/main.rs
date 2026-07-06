@@ -1,4 +1,3 @@
-mod macros;
 mod algorithm;
 mod generate_csv;
 mod misc;
@@ -11,20 +10,17 @@ use crossbeam_channel::{bounded, Receiver, Sender};
 use lazy_static::lazy_static;
 use std::{
     time::{Duration, Instant},
-    io::{Write, stdout},
+    io::stdout,
     thread,
-    sync::atomic::{
-        AtomicI32
-    }
+    sync::atomic::AtomicI32
 };
 use crossterm::ExecutableCommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crate::{
-    misc::split_chunks,
     metrics::write_metrics,
     threads::*
 };
-use crate::checkpoint::write_checkpoints;
+use crate::checkpoint::{load_workloads, write_checkpoints};
 
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
@@ -39,8 +35,8 @@ lazy_static! {
     static ref END_SEED: i32 = env_int!("END_SEED", 10_000);
     static ref WORKER_THREADS: i32 = env_int!("WORKER_THREADS", 8);
     static ref WRITER_THREADS: i32 = env_int!("WRITER_THREADS", 4);
-    static ref COMMIT_COUNT: i32 = env_int!("COMMIT_COUNT", 1000);
-    static ref CHANNEL_SIZE: i32 = env_int!("CHANNEL_SIZE", 1000);
+    static ref COMMIT_COUNT: usize = env_int!("COMMIT_COUNT", 1000) as usize;
+    static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
 
@@ -53,20 +49,19 @@ lazy_static! {
         format!("postgres://{user}:{pass}@{netloc}:{port}/{db_name}?sslmode=disable")
     };
 
-    static ref MAX_BUFFER: i32 = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS;
+    static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
 }
 fn main() {
     assert!(*START_SEED < *END_SEED);
     assert!(*WORKER_THREADS < *END_SEED);
     assert!(*WORKER_THREADS < MAX_WORKERS as i32);
 
-
+    // capture start time for performance evaluation
     let start = Instant::now();
 
     // Prepare thread resources
-    let all_seeds = *START_SEED..*END_SEED;
-    let workloads = split_chunks(all_seeds, *WORKER_THREADS);
-    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE as usize);
+    let workloads = load_workloads().unwrap();
+    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
@@ -79,18 +74,17 @@ fn main() {
         }))
     }
     if !*BENCHMARK {
-        let conf = ((*DB_STR).clone(), *COMMIT_COUNT);
         // Launch database threads
         for _ in 0..*WRITER_THREADS {
             let thread_receiver = entry_reciever.clone();
-            let thread_conf = conf.clone();
             commit_handles.push(thread::spawn(move || {
-                commit_thread(thread_receiver, thread_conf)
+                commit_thread(thread_receiver)
             }))
         }
     }
     else {
         for _ in 0..*WRITER_THREADS {
+            // launch dummy db threads that will void all results
             let thread_receiver = entry_reciever.clone();
             commit_handles.push(thread::spawn(move || {
                 writer_sink(thread_receiver)

@@ -6,7 +6,7 @@ use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use postgres::{Client, NoTls};
 use anyhow::Result;
 use crate::generate_csv::gen_formatted;
-use crate::{COMMITTED_SEEDS, PROGRESS_WORKERS, REC_MULTIPLIER, STAR_COUNT};
+use crate::{COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS, REC_MULTIPLIER, STAR_COUNT};
 use crate::misc::{COPY_PLANET, COPY_STAR};
 
 pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) -> Result<()> {
@@ -18,22 +18,17 @@ pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usiz
     }
     Ok(())
 }
-pub fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) -> Result<()> {
-    let mut client = Client::connect(config.0.as_str(), NoTls)?;
-    let commit_size = config.1 as usize;
+pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
+    let mut client = Client::connect(&*DB_STR.as_str(), NoTls)?;
 
-    loop {
-        let mut batch: Vec<(String, String)> = Vec::with_capacity(commit_size);
-        for _ in 0..commit_size {
+    'outer: loop {
+        let mut batch: Vec<(String, String)> = Vec::with_capacity(*COMMIT_COUNT);
+        'inner: for i in 0..*COMMIT_COUNT {
             match rec.recv_timeout(Duration::new(1, 0)) {
                 Ok(msg) => batch.push(msg),
                 Err(RecvTimeoutError::Timeout) => panic!("commit_thread: recv_timeout reached - channel stall detected (>1s lull)"),
-                Err(RecvTimeoutError::Disconnected) => break,
+                Err(RecvTimeoutError::Disconnected) => if i == 0 {break 'outer} else {break 'inner},
             }
-        }
-
-        if batch.is_empty() {
-            break;
         }
 
         let mut txn = client.transaction()?;
