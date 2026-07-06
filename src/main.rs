@@ -3,6 +3,7 @@ mod algorithm;
 mod generate_csv;
 mod misc;
 mod metrics;
+mod logging;
 
 use postgres::{Client, NoTls};
 use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender};
@@ -14,7 +15,8 @@ use std::{
     fs::OpenOptions,
     sync::atomic::{
         AtomicI32,
-        Ordering::Relaxed
+        Ordering::Relaxed,
+        AtomicU64
     }
 };
 use crossterm::ExecutableCommand;
@@ -30,7 +32,7 @@ const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
 static COMMITTED_SEEDS: AtomicI32 = AtomicI32::new(0);
-
+static BENCH_BYTES: AtomicU64 = AtomicU64::new(0);
 static PROGRESS_WORKERS: [AtomicI32; 32] = [const { AtomicI32::new(0) }; 32];
 
 fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) {
@@ -42,32 +44,53 @@ fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) {
     }
 }
 fn commit_thread(rec: Receiver<(String, String)>, config: (String, i32)) {
-    let mut star_client = Client::connect(config.0.as_str(), NoTls).unwrap();
-    let mut planet_client = Client::connect(config.0.as_str(), NoTls).unwrap();
+    let mut client = Client::connect(config.0.as_str(), NoTls).unwrap();
+    let commit_size = config.1 as usize;
 
-    let mut scpy = star_client.copy_in(COPY_STAR).unwrap();
-    let mut pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
-    let mut i = 0;
     loop {
-        i += 1;
-        let (star, planet) = match rec.recv_timeout(Duration::new(1,0)) {
-            Ok(msg) => msg,
-            Err(RecvTimeoutError::Disconnected) => break,
-            Err(RecvTimeoutError::Timeout) => panic!("rec timeout: Writers broken?"),
-        };
-        scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
-        pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
-        if i % config.1 == 0 {
-            COMMITTED_SEEDS.fetch_add(config.1, std::sync::atomic::Ordering::SeqCst);
-            scpy.finish().unwrap();
-            pcpy.finish().unwrap();
-            scpy = star_client.copy_in(COPY_STAR).unwrap();
-            pcpy = planet_client.copy_in(COPY_PLANET).unwrap();
+        let mut batch: Vec<(String, String)> = Vec::with_capacity(commit_size);
+        for _ in 0..commit_size {
+            match rec.recv_timeout(Duration::new(1, 0)) {
+                Ok(msg) => batch.push(msg),
+                Err(RecvTimeoutError::Timeout) => panic!("commit_thread: recv_timeout reached - channel stall detected (>1s lull)"),
+                Err(RecvTimeoutError::Disconnected) => break,
+            }
         }
 
+        if batch.is_empty() {
+            break;
+        }
+
+        let mut txn = client.transaction().unwrap();
+
+        {
+            let mut scpy = txn.copy_in(COPY_STAR).unwrap();
+            for (star, _) in &batch {
+                scpy.write_all(star.as_bytes()).expect("writing to scpy failed");
+            }
+            scpy.finish().unwrap();
+        }
+
+        {
+            let mut pcpy = txn.copy_in(COPY_PLANET).unwrap();
+            for (_, planet) in &batch {
+                pcpy.write_all(planet.as_bytes()).expect("writing to pcpy failed");
+            }
+            pcpy.finish().unwrap();
+        }
+
+        txn.commit().unwrap();
+        COMMITTED_SEEDS.fetch_add(batch.len() as i32, std::sync::atomic::Ordering::SeqCst);
     }
-    scpy.finish().unwrap();
-    pcpy.finish().unwrap();
+}
+fn writer_sink(rec: Receiver<(String, String)>) {
+    loop {
+        match rec.recv_timeout(Duration::new(1, 0)) {
+            Ok(_) => {},
+            Err(RecvTimeoutError::Timeout) => panic!("writer_sink: recv_timeout reached - channel stall detected (>1s lull)"),
+            Err(RecvTimeoutError::Disconnected) => break,
+        }
+    }
 }
 fn main() {
     // Retrieve Config
@@ -80,7 +103,7 @@ fn main() {
 
     let checkpoint_file = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
 
-    let conf = (get_db_str(), commit_count);
+    let benchmark = env_str!("BENCHMARK", "0") == "1";
 
     assert!(start_seed < end_seed);
     assert!(worker_count < end_seed);
@@ -104,32 +127,44 @@ fn main() {
             worker_thread(thread_work, thread_sender, id);
         }))
     }
-    // Launch database threads
-    for _ in 0..writer_count {
-        let thread_receiver = entry_reciever.clone();
-        let thread_conf = conf.clone();
-        commit_handles.push(thread::spawn(move || {
-            commit_thread(thread_receiver, thread_conf);
-        }))
+    if !benchmark {
+        let conf = (get_db_str(), commit_count);
+        // Launch database threads
+        for _ in 0..writer_count {
+            let thread_receiver = entry_reciever.clone();
+            let thread_conf = conf.clone();
+            commit_handles.push(thread::spawn(move || {
+                commit_thread(thread_receiver, thread_conf);
+            }))
+        }
+    }
+    else {
+        for _ in 0..writer_count {
+            let thread_receiver = entry_reciever.clone();
+            commit_handles.push(thread::spawn(move || {
+                writer_sink(thread_receiver);
+            }))
+        }
     }
     let mut stdout = stdout();
     stdout.execute(EnterAlternateScreen).unwrap();
     stdout.execute(crossterm::cursor::Hide).unwrap();
 
     loop {
-        let max_buffer = channel_size + commit_count * writer_count;
-        let mut cfile = OpenOptions::new()
-            .write(true)
-            .create(true)
-            .open(&checkpoint_file)
-            .unwrap();
-        PROGRESS_WORKERS
-            .iter()
-            .map(|i| i.load(Relaxed) - max_buffer)
-            .for_each(|x| {
-                writeln!(cfile, "{}", x).unwrap();
-            });
-
+        if !benchmark {
+            let max_buffer = channel_size + commit_count * writer_count;
+            let mut cfile = OpenOptions::new()
+                .write(true)
+                .create(true)
+                .open(&checkpoint_file)
+                .unwrap();
+            PROGRESS_WORKERS
+                .iter()
+                .map(|i| i.load(Relaxed) - max_buffer)
+                .for_each(|x| {
+                    writeln!(cfile, "{}", x).unwrap();
+                });
+        }
 
 
 
