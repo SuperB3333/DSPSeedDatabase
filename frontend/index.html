@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DSP Seed Finder - Rule Builder</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <div id="app">
+        <h1>DSP Rule Builder</h1>
+        <div class="toolbar">
+            <button onclick="compileRuleset()">Compile Ruleset</button>
+            <button onclick="clearAndReset()">Reset</button>
+        </div>
+
+        <div id="rule-tree-container"></div>
+
+        <div class="output-container">
+            <h2>Generated SQL</h2>
+            <pre id="sql-output"></pre>
+            <h2>Parameters</h2>
+            <pre id="params-output"></pre>
+        </div>
+    </div>
+
+    <script src="js/rules.js"></script>
+    <script src="js/metadata.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/ui.js"></script>
+    <script src="js/main.js"></script>
+</body>
+</html>
