@@ -1,5 +1,4 @@
-
-
+#[macro_export]
 macro_rules! env_int {
     ($var:expr) => {
         match std::env::var($var) {
@@ -11,7 +10,7 @@ macro_rules! env_int {
         std::env::var($var).map(|e| e.parse::<i32>().unwrap_or($default)).unwrap_or($default)
     };
 }
-pub(crate) use env_int;
+#[macro_export]
 macro_rules! env_str {
     ($var:expr) => {
         std::env::var($var)
@@ -20,4 +19,3 @@ macro_rules! env_str {
         std::env::var($var).unwrap_or($default.to_string())
     }
 }
-pub(crate) use env_str;

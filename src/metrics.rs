@@ -2,8 +2,8 @@ use std::io::{stdout, Write};
 use crossterm::{
     ExecutableCommand,
     terminal::{Clear, ClearType, enable_raw_mode, disable_raw_mode},
+    cursor::MoveTo
 };
-use crossterm::cursor::MoveTo;
 use super::COMMITTED_SEEDS;
 
 pub fn write_metrics(sps: f32, goal: i32, queue: i32) -> Result<(), Box<dyn std::error::Error>> {
@@ -15,6 +15,7 @@ pub fn write_metrics(sps: f32, goal: i32, queue: i32) -> Result<(), Box<dyn std:
 
     writeln!(stdout, "Live metrics:")?;
     writeln!(stdout, "seeds/sec: {:<5}", format!("{:.2}", sps))?;
+
 
     let cpu_progress = (COMMITTED_SEEDS.load(std::sync::atomic::Ordering::SeqCst) + queue) as f32 / goal as f32;
     let cpu_percent = (cpu_progress * 100.0).round() as usize;

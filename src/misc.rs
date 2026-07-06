@@ -1,5 +1,5 @@
 use std::ops::Range;
-use crate::macros::env_str;
+use crate::env_str;
 
 pub const COPY_PLANET: &str = "COPY planets(star_id, index, water_item, gas_giant, sun_distance, inside_ds, satellites, temperature, theme_id, gas_h, gas_d, gas_i, tidal_lock, min_iron, max_iron, estimate_iron, min_copper, max_copper, estimate_copper, min_silicium, max_silicium, estimate_silicium, min_titanium, max_titanium, estimate_titanium, min_stone, max_stone, estimate_stone, min_coal, max_coal, estimate_coal, min_oil, max_oil, estimate_oil, min_fireice, max_fireice, estimate_fireice, min_diamond, max_diamond, estimate_diamond, min_fractal, max_fractal, estimate_fractal, min_crysrub, max_crysrub, estimate_crysrub, min_grat, max_grat, estimate_grat, min_bamboo, max_bamboo, estimate_bamboo, min_mag, max_mag, estimate_mag) FROM STDIN WITH (FORMAT CSV)";
 pub const COPY_STAR: &str = "COPY stars(id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT CSV)";
@@ -17,13 +17,4 @@ pub fn split_chunks(r: Range<i32>, chunks: i32) -> Vec<Range<i32>> {
         cur += add;
     }
     out
-}
-
-pub fn get_db_str() -> String {
-    let user = env_str!("PG_USER", "postgres");
-    let pass = env_str!("PG_PASS", "rootpassword");
-    let netloc = env_str!("PG_NETLOC", "localhost");
-    let port = env_str!("PG_PORT", "5432");
-    let db_name = env_str!("PG_DBNAME", "dsp");
-    format!("postgres://{user}:{pass}@{netloc}:{port}/{db_name}?sslmode=disable")
 }
