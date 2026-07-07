@@ -16,5 +16,5 @@ jobs:
 
     steps:
     - uses: actions/checkout@v4
-    - name: Build
-      run: cargo build --verbose --release
+    - name: Build Insertion module
+      run: cargo build --verbose --release --manifest-path ./inserter/Cargo.toml

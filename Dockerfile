@@ -1,6 +1,6 @@
 FROM rust:latest AS builder
 WORKDIR /app
-COPY . .
+COPY ./inserter/* .
 RUN cargo build --release
 
 FROM scratch

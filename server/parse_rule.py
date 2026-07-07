@@ -1,5 +1,5 @@
 import json
-from rules import *
+from lookup.rules import *
 from typing import Tuple, List, Any
 
 
