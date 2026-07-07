@@ -6,7 +6,7 @@ use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use postgres::{Client, NoTls};
 use anyhow::Result;
 use crate::generate_csv::gen_formatted;
-use crate::{COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS, REC_MULTIPLIER, STAR_COUNT};
+use crate::{log_info, COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS, REC_MULTIPLIER, STAR_COUNT};
 use crate::misc::{COPY_PLANET, COPY_STAR};
 
 pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) -> Result<()> {
@@ -16,6 +16,7 @@ pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usiz
         PROGRESS_WORKERS[id].fetch_add(1, Relaxed);
 
     }
+    log_info!("Worker thread {} finished sucessfully", id);
     Ok(())
 }
 pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
@@ -52,6 +53,7 @@ pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
         txn.commit()?;
         COMMITTED_SEEDS.fetch_add(batch.len() as i32, std::sync::atomic::Ordering::SeqCst);
     }
+    log_info!("Writer thread terminated");
     Ok(())
 }
 pub fn writer_sink(rec: Receiver<(String, String)>) -> Result<()> {

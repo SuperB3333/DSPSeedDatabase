@@ -25,11 +25,13 @@ use crate::checkpoint::{load_workloads, write_checkpoints};
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
+// The maximum amount of workers the binary supports. 32 should be way higher than what is reasonable on most machines
 const MAX_WORKERS: usize = 32;
 
 static COMMITTED_SEEDS: AtomicI32 = AtomicI32::new(0);
 static PROGRESS_WORKERS: [AtomicI32; MAX_WORKERS] = [const { AtomicI32::new(0) }; MAX_WORKERS];
 
+// Global configurations: Lazy values, read on first use
 lazy_static! {
     static ref START_SEED: i32 = env_int!("START_SEED", 0);
     static ref END_SEED: i32 = env_int!("END_SEED", 10_000);
@@ -52,34 +54,47 @@ lazy_static! {
     static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
 }
 fn main() {
-    assert!(*START_SEED < *END_SEED);
-    assert!(*WORKER_THREADS < *END_SEED);
-    assert!(*WORKER_THREADS < MAX_WORKERS as i32);
+    assert!(*START_SEED < *END_SEED, "START_SEED is lower than END_SEED");
+    assert!(*WORKER_THREADS < (*END_SEED - *START_SEED), "More worker threads than seeds to process");
+    assert!(*WORKER_THREADS < MAX_WORKERS as i32, "More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher.");
 
     // capture start time for performance evaluation
     let start = Instant::now();
 
     // Prepare thread resources
+    log_info!("Loading workloads...");
     let workloads = load_workloads().unwrap();
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
+    log_info!("Starting worker threads...");
     // Launch worker threads
     for (id, work) in workloads.iter().enumerate() {
         let thread_sender = entry_sender.clone();
         let thread_work = work.clone();
-        work_handles.push(thread::spawn(move || {
-            worker_thread(thread_work, thread_sender, id)
-        }))
+        work_handles.push(
+            thread::Builder::new()
+                .name(format!("worker_{}", id))
+                .spawn(move || {
+                    worker_thread(thread_work, thread_sender, id)
+                })
+                .unwrap()
+        );
     }
+    log_info!("Starting writer threads...");
     if !*BENCHMARK {
         // Launch database threads
-        for _ in 0..*WRITER_THREADS {
+        for id in 0..*WRITER_THREADS {
             let thread_receiver = entry_reciever.clone();
-            commit_handles.push(thread::spawn(move || {
-                commit_thread(thread_receiver)
-            }))
+            commit_handles.push(
+                thread::Builder::new()
+                    .name(format!("writer_{}", id))
+                    .spawn(move || {
+                        commit_thread(thread_receiver)
+                    })
+                    .unwrap()
+            );
         }
     }
     else {
@@ -91,6 +106,9 @@ fn main() {
             }))
         }
     }
+
+    log_info!("Starting main thread loop");
+    // Main thread takes checkpoints and displays metrics to the terminal
     let mut stdout = stdout();
     stdout.execute(EnterAlternateScreen).unwrap();
     stdout.execute(crossterm::cursor::Hide).unwrap();
@@ -102,7 +120,11 @@ fn main() {
 
         write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap(); //todo implement seeds/sec (arg 1)
         thread::sleep(Duration::from_millis(100));
-        if work_handles.iter().all(|i| i.is_finished()) { break }
+
+        if work_handles.iter().all(|i| i.is_finished()) {
+            log_info!("All workers have finished!");
+            break;
+        }
     }
 
     stdout.execute(crossterm::cursor::Show).unwrap();
@@ -112,6 +134,7 @@ fn main() {
         handle.join().unwrap().unwrap(); // wait for all workers to finish
     }
     drop(entry_sender); // close the channel so recv() returns Err instead of blocking
+    log_info!("Waiting for writer threads to automatically shut down");
     for handle in commit_handles {
         handle.join().unwrap().unwrap(); // wait for senders to finish
     }
