@@ -45,7 +45,7 @@ pub fn create_db_schema() -> bool {
     postgres::Client::connect(
         (*crate::DB_STR).as_str(),
         postgres::NoTls
-    ) //todo add indicies to the init script and use it. Compare to the presence of checkpoints: if checkpoints present, but not the db schema or vice versa, warn because of potential corrupt data
+    ) //todo add indicies to the init script
         .unwrap()
         .batch_execute(INIT_SCRIPT)
         .is_err()
