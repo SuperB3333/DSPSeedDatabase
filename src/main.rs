@@ -9,7 +9,7 @@ use postgres::{Client, NoTls};
 use crossbeam_channel::{bounded, Receiver, RecvTimeoutError, Sender};
 use std::{
     time::{Duration, Instant},
-    io::{Write, stdout},
+    io::{Write, stdout, IsTerminal},
     ops::Range,
     thread,
     fs::OpenOptions,
@@ -147,8 +147,12 @@ fn main() {
         }
     }
     let mut stdout = stdout();
-    stdout.execute(EnterAlternateScreen).unwrap();
-    stdout.execute(crossterm::cursor::Hide).unwrap();
+    let is_tty = stdout.is_terminal();
+
+    if is_tty {
+        stdout.execute(EnterAlternateScreen).unwrap();
+        stdout.execute(crossterm::cursor::Hide).unwrap();
+    }
 
     loop {
         if !benchmark {
@@ -169,13 +173,17 @@ fn main() {
 
 
 
-        write_metrics(-1.0, end_seed - start_seed, entry_reciever.len() as i32).unwrap();
+        if is_tty {
+            write_metrics(-1.0, end_seed - start_seed, entry_reciever.len() as i32).unwrap();
+        }
         thread::sleep(Duration::from_millis(100));
         if work_handles.iter().all(|i| i.is_finished()) { break }
     }
 
-    stdout.execute(crossterm::cursor::Show).unwrap();
-    stdout.execute(LeaveAlternateScreen).unwrap();
+    if is_tty {
+        stdout.execute(crossterm::cursor::Show).unwrap();
+        stdout.execute(LeaveAlternateScreen).unwrap();
+    }
     // Wait for threads to finish
     for handle in work_handles {
         handle.join().unwrap(); // wait for all workers to finish

@@ -1,4 +1,4 @@
-use std::io::{stdout, Write};
+use std::io::{stdout, Write, IsTerminal};
 use crossterm::{
     ExecutableCommand,
     terminal::{Clear, ClearType, enable_raw_mode, disable_raw_mode},
@@ -7,8 +7,11 @@ use crossterm::cursor::MoveTo;
 use super::COMMITTED_SEEDS;
 
 pub fn write_metrics(sps: f32, goal: i32, queue: i32) -> Result<(), Box<dyn std::error::Error>> {
-    enable_raw_mode()?;
     let mut stdout = stdout();
+    if !stdout.is_terminal() {
+        return Ok(());
+    }
+    enable_raw_mode()?;
 
     stdout.execute(MoveTo(0, 0))?;
     for _ in 0..4 { stdout.execute(Clear(ClearType::All))?; }
