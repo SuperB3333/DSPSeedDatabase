@@ -13,6 +13,7 @@ debug = true
 
 [[bin]]
 name = "dsp_seed_finder"
+path = "src/main.rs"
 required-features = ["binary"]
 
 [lib]
