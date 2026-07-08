@@ -1,7 +1,11 @@
 version: "1"
 services:
   seedfinder:
+<<<<<<< HEAD
     image: toti330/seedfinder:0.2.0
+=======
+    image: toti330/dsp_seed_finder:0.4.0
+>>>>>>> c33cd78 (fix: replaced dynamically linked binary with static one)
     container_name: seedfinder
     environment:
       END_SEED: 100000 # max is 10,000,000 (10m)
