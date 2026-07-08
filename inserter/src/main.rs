@@ -16,6 +16,7 @@ use std::{
 };
 use crossterm::ExecutableCommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
+use crossterm::tty::IsTty;
 use crate::{
     metrics::write_metrics,
     threads::*
@@ -41,6 +42,8 @@ lazy_static! {
     static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
+
+    static ref TUI: bool = crossterm::ansi_support::supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
 
     static ref DB_STR: String = {
         let user = env_str!("PG_USER", "postgres");
@@ -109,26 +112,31 @@ fn main() {
 
     log_info!("Starting main thread loop");
     // Main thread takes checkpoints and displays metrics to the terminal
-    let mut stdout = stdout();
-    stdout.execute(EnterAlternateScreen).unwrap();
-    stdout.execute(crossterm::cursor::Hide).unwrap();
-
+    if *TUI {
+        let mut stdout = stdout();
+        stdout.execute(EnterAlternateScreen).unwrap();
+        stdout.execute(crossterm::cursor::Hide).unwrap();
+    }
     loop {
         if !*BENCHMARK {
             write_checkpoints().unwrap();
         }
 
-        write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap(); //todo implement seeds/sec (arg 1)
-        thread::sleep(Duration::from_millis(100));
+        if *TUI {
+            write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap(); //todo implement seeds/sec (arg 1)
+        }
 
+        thread::sleep(Duration::from_millis(100));
         if work_handles.iter().all(|i| i.is_finished()) {
             log_info!("All workers have finished!");
             break;
         }
     }
-
-    stdout.execute(crossterm::cursor::Show).unwrap();
-    stdout.execute(LeaveAlternateScreen).unwrap();
+    if *TUI {
+        let mut stdout = stdout();
+        stdout.execute(crossterm::cursor::Show).unwrap();
+        stdout.execute(LeaveAlternateScreen).unwrap();
+    }
     // Wait for threads to finish
     for handle in work_handles {
         handle.join().unwrap().unwrap(); // wait for all workers to finish
