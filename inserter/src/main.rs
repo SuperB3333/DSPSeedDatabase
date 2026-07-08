@@ -43,7 +43,7 @@ lazy_static! {
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
 
-    static ref TUI: bool = crossterm::ansi_support::supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
+    static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
 
     static ref DB_STR: String = {
         let user = env_str!("PG_USER", "postgres");
@@ -56,6 +56,17 @@ lazy_static! {
 
     static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
 }
+
+#[cfg(windows)]
+fn supports_ansi() -> bool {
+    crossterm::ansi_support::supports_ansi()
+}
+
+#[cfg(not(windows))]
+fn supports_ansi() -> bool {
+    true
+}
+
 fn main() {
     assert!(*START_SEED < *END_SEED, "START_SEED is lower than END_SEED");
     assert!(*WORKER_THREADS < (*END_SEED - *START_SEED), "More worker threads than seeds to process");

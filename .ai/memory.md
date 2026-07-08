@@ -5,7 +5,7 @@ Dyson Sphere Program (DSP) seed database for generating, storing, and querying g
 
 ## Discoveries
 - **[Architecture]** Hybrid system: Rust (src/) for heavy generation/DB writes, Python (server/) for the query API and schema management. (Source: src/main.rs, server/server.py)
-- **[Build]** Rust component built with Cargo; includes release optimizations like LTO. Dockerfile provides a scratch-based runtime image. (Source: Cargo.toml, Dockerfile)
+- **[Build]** Rust component lives under `inserter/`; Docker builds it by copying `inserter/` into `/app` and compiling the `dsp_seed_finder` binary for `x86_64-unknown-linux-musl`. (Source: inserter/Cargo.toml, Dockerfile)
 - **[Config]** Rust workers configured via env vars: `START_SEED`, `END_SEED`, `WORKER_THREADS`, `COMMIT_COUNT`, `CHANNEL_SIZE`, `CHECKPOINT_FILE`. (Source: src/main.rs)
 - **[Dependency]** Python relies on `psycopg2` for DB and `websockets` for API. Rust uses `crossbeam-channel` for task distribution. (Source: Cargo.toml, server/server.py)
 - **[Tooling]** Docker Compose files in `compose/` support SQLite, PostgreSQL, and Monitoring (Prometheus/Grafana) stacks. (Source: compose/compose.md)
