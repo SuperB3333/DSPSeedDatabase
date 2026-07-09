@@ -9,6 +9,7 @@ mod threads;
 use crate::checkpoint::{load_workloads, write_checkpoints};
 use crate::misc::check_db_connection;
 use crate::{metrics::write_metrics, threads::*};
+use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::tty::IsTty;
@@ -16,6 +17,7 @@ use crossterm::ExecutableCommand;
 use lazy_static::lazy_static;
 use std::{
     io::stdout,
+    process::ExitCode,
     sync::atomic::AtomicI32,
     thread,
     time::{Duration, Instant},
@@ -69,7 +71,17 @@ fn supports_ansi() -> bool {
     true
 }
 
-fn main() {
+fn main() -> ExitCode {
+    match run() {
+        Ok(()) => ExitCode::SUCCESS,
+        Err(err) => {
+            log_error!("{:#}", err);
+            ExitCode::FAILURE
+        }
+    }
+}
+
+fn run() -> Result<()> {
     assert!(*START_SEED < *END_SEED, "START_SEED is lower than END_SEED");
     assert!(
         *WORKER_THREADS < (*END_SEED - *START_SEED),
@@ -98,7 +110,7 @@ fn main() {
 
     // Prepare thread resources
     log_info!("Loading workloads...");
-    let workloads = load_workloads().unwrap();
+    let workloads = load_workloads().context("failed to load workloads")?;
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) =
         bounded(*CHANNEL_SIZE);
 
@@ -113,7 +125,7 @@ fn main() {
             thread::Builder::new()
                 .name(format!("worker_{}", id))
                 .spawn(move || worker_thread(thread_work, thread_sender, id))
-                .unwrap(),
+                .with_context(|| format!("failed to spawn worker thread {}", id))?,
         );
     }
     log_info!("Starting writer threads...");
@@ -125,7 +137,7 @@ fn main() {
                 thread::Builder::new()
                     .name(format!("writer_{}", id))
                     .spawn(move || commit_thread(thread_receiver))
-                    .unwrap(),
+                    .with_context(|| format!("failed to spawn writer thread {}", id))?,
             );
         }
     } else {
@@ -140,16 +152,17 @@ fn main() {
     // Main thread takes checkpoints and displays metrics to the terminal
     if *TUI {
         let mut stdout = stdout();
-        stdout.execute(EnterAlternateScreen).unwrap();
-        stdout.execute(crossterm::cursor::Hide).unwrap();
+        stdout.execute(EnterAlternateScreen)?;
+        stdout.execute(crossterm::cursor::Hide)?;
     }
     loop {
         if !*BENCHMARK {
-            write_checkpoints().unwrap();
+            write_checkpoints().context("failed to write checkpoints")?;
         }
 
         if *TUI {
-            write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap();
+            write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32)
+                .map_err(|err| anyhow!("failed to write metrics: {}", err))?;
             //todo implement seeds/sec (arg 1)
         }
 
@@ -161,20 +174,27 @@ fn main() {
     }
     if *TUI {
         let mut stdout = stdout();
-        stdout.execute(crossterm::cursor::Show).unwrap();
-        stdout.execute(LeaveAlternateScreen).unwrap();
+        stdout.execute(crossterm::cursor::Show)?;
+        stdout.execute(LeaveAlternateScreen)?;
     }
     // Wait for threads to finish
     for handle in work_handles {
-        handle.join().unwrap().unwrap(); // wait for all workers to finish
+        handle
+            .join()
+            .map_err(|_| anyhow!("worker thread panicked"))?
+            .context("worker thread failed")?;
     }
     drop(entry_sender); // close the channel so recv() returns Err instead of blocking
     log_info!("Waiting for writer threads to automatically shut down");
     for handle in commit_handles {
-        handle.join().unwrap().unwrap(); // wait for senders to finish
+        handle
+            .join()
+            .map_err(|_| anyhow!("writer thread panicked"))?
+            .context("writer thread failed")?;
     }
 
     let elapsed = start.elapsed();
     let per_second = (*END_SEED - *START_SEED) as f32 / elapsed.as_secs() as f32;
     println!("seeds/sec: {:?}", per_second);
+    Ok(())
 }
