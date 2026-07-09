@@ -1,27 +1,25 @@
 mod algorithm;
-mod generate_csv;
-mod misc;
-mod metrics;
-mod logging;
-mod threads;
 mod checkpoint;
+mod generate_csv;
+mod logging;
+mod metrics;
+mod misc;
+mod threads;
 
+use crate::checkpoint::{load_workloads, write_checkpoints};
+use crate::misc::check_db_connection;
+use crate::{metrics::write_metrics, threads::*};
 use crossbeam_channel::{bounded, Receiver, Sender};
-use lazy_static::lazy_static;
-use std::{
-    time::{Duration, Instant},
-    io::stdout,
-    thread,
-    sync::atomic::AtomicI32
-};
-use crossterm::ExecutableCommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
 use crossterm::tty::IsTty;
-use crate::{
-    metrics::write_metrics,
-    threads::*
+use crossterm::ExecutableCommand;
+use lazy_static::lazy_static;
+use std::{
+    io::stdout,
+    sync::atomic::AtomicI32,
+    thread,
+    time::{Duration, Instant},
 };
-use crate::checkpoint::{load_workloads, write_checkpoints};
 
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
@@ -42,18 +40,22 @@ lazy_static! {
     static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
-
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
-
+    static ref PG_USER: String = env_str!("PG_USER", "postgres");
+    static ref PG_PASS: String = env_str!("PG_PASS", "rootpassword");
+    static ref PG_NETLOC: String = env_str!("PG_NETLOC", "localhost");
+    static ref PG_PORT: String = env_str!("PG_PORT", "5432");
+    static ref PG_DBNAME: String = env_str!("PG_DBNAME", "dsp");
     static ref DB_STR: String = {
-        let user = env_str!("PG_USER", "postgres");
-        let pass = env_str!("PG_PASS", "rootpassword");
-        let netloc = env_str!("PG_NETLOC", "localhost");
-        let port = env_str!("PG_PORT", "5432");
-        let db_name = env_str!("PG_DBNAME", "dsp");
-        format!("postgres://{user}:{pass}@{netloc}:{port}/{db_name}?sslmode=disable")
+        format!(
+            "postgres://{}:{}@{}:{}/{}?sslmode=disable",
+            PG_USER.as_str(),
+            PG_PASS.as_str(),
+            PG_NETLOC.as_str(),
+            PG_PORT.as_str(),
+            PG_DBNAME.as_str()
+        )
     };
-
     static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
 }
 
@@ -69,16 +71,36 @@ fn supports_ansi() -> bool {
 
 fn main() {
     assert!(*START_SEED < *END_SEED, "START_SEED is lower than END_SEED");
-    assert!(*WORKER_THREADS < (*END_SEED - *START_SEED), "More worker threads than seeds to process");
-    assert!(*WORKER_THREADS < MAX_WORKERS as i32, "More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher.");
+    assert!(
+        *WORKER_THREADS < (*END_SEED - *START_SEED),
+        "More worker threads than seeds to process"
+    );
+    assert!(
+        *WORKER_THREADS < MAX_WORKERS as i32,
+        "More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher."
+    );
 
     // capture start time for performance evaluation
     let start = Instant::now();
 
+    if *BENCHMARK {
+        log_info!("Benchmark mode enabled; database writes are disabled");
+    }
+
+    if !check_db_connection() {
+        if *BENCHMARK {
+            log_warn!("Database connection failed, continuing because BENCHMARK=1");
+        } else {
+            log_error!("Database connection failed and BENCHMARK is not enabled; exiting");
+            std::process::exit(1);
+        }
+    }
+
     // Prepare thread resources
     log_info!("Loading workloads...");
     let workloads = load_workloads().unwrap();
-    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
+    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) =
+        bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
@@ -90,10 +112,8 @@ fn main() {
         work_handles.push(
             thread::Builder::new()
                 .name(format!("worker_{}", id))
-                .spawn(move || {
-                    worker_thread(thread_work, thread_sender, id)
-                })
-                .unwrap()
+                .spawn(move || worker_thread(thread_work, thread_sender, id))
+                .unwrap(),
         );
     }
     log_info!("Starting writer threads...");
@@ -104,20 +124,15 @@ fn main() {
             commit_handles.push(
                 thread::Builder::new()
                     .name(format!("writer_{}", id))
-                    .spawn(move || {
-                        commit_thread(thread_receiver)
-                    })
-                    .unwrap()
+                    .spawn(move || commit_thread(thread_receiver))
+                    .unwrap(),
             );
         }
-    }
-    else {
+    } else {
         for _ in 0..*WRITER_THREADS {
             // launch dummy db threads that will void all results
             let thread_receiver = entry_reciever.clone();
-            commit_handles.push(thread::spawn(move || {
-                writer_sink(thread_receiver)
-            }))
+            commit_handles.push(thread::spawn(move || writer_sink(thread_receiver)))
         }
     }
 
@@ -134,7 +149,8 @@ fn main() {
         }
 
         if *TUI {
-            write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap(); //todo implement seeds/sec (arg 1)
+            write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap();
+            //todo implement seeds/sec (arg 1)
         }
 
         thread::sleep(Duration::from_millis(100));
