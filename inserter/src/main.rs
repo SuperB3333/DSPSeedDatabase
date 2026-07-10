@@ -11,9 +11,11 @@ use crate::misc::check_db_connection;
 use crate::{metrics::write_metrics, threads::*};
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
-use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
-use crossterm::tty::IsTty;
-use crossterm::ExecutableCommand;
+use crossterm::{
+    terminal::{EnterAlternateScreen, LeaveAlternateScreen},
+    tty::IsTty,
+    ExecutableCommand
+};
 use lazy_static::lazy_static;
 use std::{
     io::stdout,
@@ -42,14 +44,18 @@ lazy_static! {
     static ref WRITER_THREADS: i32 = env_int!("WRITER_THREADS", 4);
     static ref COMMIT_COUNT: usize = env_int!("COMMIT_COUNT", 1000) as usize;
     static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
+
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
+
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
+
     static ref PG_USER: String = env_str!("PG_USER", "postgres");
     static ref PG_PASS: String = env_str!("PG_PASS", "rootpassword");
     static ref PG_NETLOC: String = env_str!("PG_NETLOC", "localhost");
     static ref PG_PORT: String = env_str!("PG_PORT", "5432");
     static ref PG_DBNAME: String = env_str!("PG_DBNAME", "dsp");
+
     static ref DB_STR: String = {
         format!(
             "postgres://{}:{}@{}:{}/{}?sslmode=disable",
@@ -65,14 +71,9 @@ lazy_static! {
 }
 
 #[cfg(windows)]
-fn supports_ansi() -> bool {
-    crossterm::ansi_support::supports_ansi()
-}
-
+fn supports_ansi() -> bool { crossterm::ansi_support::supports_ansi() }
 #[cfg(not(windows))]
-fn supports_ansi() -> bool {
-    true
-}
+fn supports_ansi() -> bool { true }
 
 fn main() -> ExitCode {
     match run() {
@@ -100,16 +101,14 @@ fn run() -> Result<()> {
         if *BENCHMARK {
             log_warn!("Database connection failed, continuing because BENCHMARK=1");
         } else {
-            log_error!("Database connection failed and BENCHMARK is not enabled; exiting");
-            std::process::exit(1);
+            error_return!("Database connection failed and BENCHMARK is not enabled; exiting");
         }
     }
 
     // Prepare thread resources
     log_info!("Loading workloads...");
     let workloads = load_workloads().context("failed to load workloads")?;
-    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) =
-        bounded(*CHANNEL_SIZE);
+    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
@@ -167,7 +166,6 @@ fn run() -> Result<()> {
         if *TUI {
             write_metrics(seeds_sec, *END_SEED - *START_SEED, entry_reciever.len() as i32)
                 .map_err(|err| anyhow!("failed to write metrics: {}", err))?;
-            //todo implement seeds/sec (arg 1)
         }
 
         thread::sleep(Duration::from_millis(1000 * MAIN_INTERVAL as u64));

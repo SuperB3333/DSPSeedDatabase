@@ -57,11 +57,8 @@ pub fn create_db_schema() -> bool {
 
 pub fn check_db_connection() -> bool {
     crate::log_info!(
-        "Checking database connection to {}:{}/{} as user '{}'",
-        crate::PG_NETLOC.as_str(),
-        crate::PG_PORT.as_str(),
-        crate::PG_DBNAME.as_str(),
-        crate::PG_USER.as_str()
+        "Checking database connection to {}",
+        *crate::DB_STR
     );
 
     match postgres::Client::connect((*crate::DB_STR).as_str(), postgres::NoTls) {
