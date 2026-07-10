@@ -26,11 +26,11 @@ pub fn write_checkpoints() -> Result<()> {
     Ok(())
 }
 /// Loads potential checkpoints or defaults to full seeds. Also creates db schema and looks for potential corrupted data
-pub fn load_workloads() -> Result<Vec<Range<i32>>> {
-    
+pub fn load_workloads() -> Vec<Range<i32>> {
+
     let normal_workloads = split_chunks(*START_SEED..*END_SEED, *WORKER_THREADS);
     let end_seeds = normal_workloads.iter().map(|i| i.end).collect();
-    
+
     let mut had_checkpoints = false;
     let workloads = match read_checkpoints(end_seeds) {
         Some(workloads) => {
@@ -44,12 +44,12 @@ pub fn load_workloads() -> Result<Vec<Range<i32>>> {
             normal_workloads
         }
     };
-    
+
     if !(create_db_schema() == had_checkpoints) {
         log_warn!("Found checkpoints and no db schema or the other way around. Data might be corrupt!")
     }
 
-    Ok(workloads)
+    workloads
 }
 fn read_checkpoints(ends: Vec<i32>) -> Option<Vec<Range<i32>>> {
     let _cp_path = &**CHECKPOINT_FILE;
@@ -58,7 +58,7 @@ fn read_checkpoints(ends: Vec<i32>) -> Option<Vec<Range<i32>>> {
         Ok(contents) => contents,
         Err(_) => return None
     };
-    
+
     Some(
         contents
             .split("\n")

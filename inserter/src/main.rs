@@ -12,7 +12,7 @@ use std::{
     time::{Duration, Instant},
     io::stdout,
     thread,
-    sync::atomic::AtomicI32
+    sync::atomic::{AtomicI32, Ordering}
 };
 use crossterm::ExecutableCommand;
 use crossterm::terminal::{EnterAlternateScreen, LeaveAlternateScreen};
@@ -23,6 +23,8 @@ use crate::{
 };
 use crate::checkpoint::{load_workloads, write_checkpoints};
 
+
+const MAIN_INTERVAL: f32 = 0.1; // in seconds
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
@@ -66,7 +68,7 @@ fn main() {
 
     // Prepare thread resources
     log_info!("Loading workloads...");
-    let workloads = load_workloads().unwrap();
+    let workloads = load_workloads();
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
@@ -82,7 +84,7 @@ fn main() {
                 .spawn(move || {
                     worker_thread(thread_work, thread_sender, id)
                 })
-                .unwrap()
+                .expect(format!("Failed to spawn worker thread {}", id).as_str())
         );
     }
     log_info!("Starting writer threads...");
@@ -96,7 +98,7 @@ fn main() {
                     .spawn(move || {
                         commit_thread(thread_receiver)
                     })
-                    .unwrap()
+                    .expect(format!("Failed to spawn writer thread {}", id).as_str())
             );
         }
     }
@@ -114,19 +116,26 @@ fn main() {
     // Main thread takes checkpoints and displays metrics to the terminal
     if *TUI {
         let mut stdout = stdout();
-        stdout.execute(EnterAlternateScreen).unwrap();
-        stdout.execute(crossterm::cursor::Hide).unwrap();
+        stdout.execute(EnterAlternateScreen).expect("Failed to customize terminal. Consider setting NO_TUI to 1");
+        stdout.execute(crossterm::cursor::Hide).expect("Failed to customize terminal. Consider setting NO_TUI to 1");
     }
+    let mut last_progress: Vec<i32> = vec![];
     loop {
         if !*BENCHMARK {
-            write_checkpoints().unwrap();
+            write_checkpoints().expect("Failed to read checkpoint file. Directory might not exist or permission is missing");
         }
+        let cur_progress: Vec<i32> = PROGRESS_WORKERS.iter().map(|x| x.load(Ordering::Relaxed)).collect();
+        let advanced = cur_progress.iter().zip(last_progress.iter()).map(|(cur, last)| (last - cur) as f32 / MAIN_INTERVAL);
+        let seeds_sec = advanced.len() as f32 / advanced.sum::<f32>();
+
+        last_progress = cur_progress.clone();
+
 
         if *TUI {
-            write_metrics(-1.0, *END_SEED - *START_SEED, entry_reciever.len() as i32).unwrap(); //todo implement seeds/sec (arg 1)
+            write_metrics(seeds_sec, *END_SEED - *START_SEED, entry_reciever.len() as i32).expect("Failed to customize terminal. Consider setting NO_TUI to 1");
         }
 
-        thread::sleep(Duration::from_millis(100));
+        thread::sleep(Duration::from_millis(1000 * MAIN_INTERVAL as u64));
         if work_handles.iter().all(|i| i.is_finished()) {
             log_info!("All workers have finished!");
             break;
@@ -134,17 +143,17 @@ fn main() {
     }
     if *TUI {
         let mut stdout = stdout();
-        stdout.execute(crossterm::cursor::Show).unwrap();
-        stdout.execute(LeaveAlternateScreen).unwrap();
+        stdout.execute(crossterm::cursor::Show).expect("Failed to customize terminal. Consider setting NO_TUI to 1");
+        stdout.execute(LeaveAlternateScreen).expect("Failed to customize terminal. Consider setting NO_TUI to 1");
     }
     // Wait for threads to finish
     for handle in work_handles {
-        handle.join().unwrap().unwrap(); // wait for all workers to finish
+        handle.join().expect("Error while joining writer threads").unwrap(); // wait for all workers to finish
     }
     drop(entry_sender); // close the channel so recv() returns Err instead of blocking
     log_info!("Waiting for writer threads to automatically shut down");
     for handle in commit_handles {
-        handle.join().unwrap().unwrap(); // wait for senders to finish
+        handle.join().expect("Error while joining writer threads").unwrap(); // wait for senders to finish
     }
 
     let elapsed = start.elapsed();
