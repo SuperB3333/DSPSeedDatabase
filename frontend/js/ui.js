@@ -2,8 +2,8 @@ function getRulesByCategory(category) {
     return Object.entries(RULE_METADATA)
         .filter(([_, meta]) => {
             if (meta.category === category) return true;
-            if (meta.categories && meta.categories.includes(category)) return true;
-            return false;
+            return !!(meta.categories && meta.categories.includes(category));
+
         })
         .map(([type, _]) => type);
 }
@@ -244,11 +244,19 @@ function compileRuleset() {
     try {
         const rootRule = instantiateRule(window.ruleset);
         const result = rootRule.toSql();
-        document.getElementById('sql-output').textContent = result.sql;
+        document.getElementById('sql-output').textContent = dedent(result.sql);
         document.getElementById('params-output').textContent = JSON.stringify(result.params, null, 2);
     } catch (e) {
         console.error(e);
         document.getElementById('sql-output').textContent = "Compilation Error: " + e.message;
         document.getElementById('params-output').textContent = "";
     }
+}
+function dedent(sql) {
+    return sql
+        .toString()
+        .split("\n")
+        .map(function(line){ return line.trim(); }, undefined)
+        .filter(function(line) { return line.length !== 0; })
+        .join("\n")
 }

@@ -12,9 +12,9 @@ def _get_client():
     _client = _new_connection()
     return _client
 
-def query_database(query: (str, list), qid: str) -> None:
-    threading.Thread(target=_query_database, args=(query, qid), name=f"Database query {qid}", daemon=True)
-def _query_database(query: (str, list), qid: str) -> None:
+def query_database(query: tuple[str, list], qid: str) -> None:
+    threading.Thread(target=_query_database, args=(query + "\nLIMIT 100", qid), name=f"Database query {qid}", daemon=True)
+def _query_database(query: tuple[str, list], qid: str) -> None:
     global glob_return_dict
     cur = _get_client().cursor()
     cur.execute(*query)
