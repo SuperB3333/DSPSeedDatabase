@@ -29,6 +29,8 @@ use std::{
 const MAIN_INTERVAL: f32 = 0.1; // in seconds
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
+const INITIAL_COLONIZE: f64 = 1.0;
+const DF_MAX_DENSITY: f64 = 1.0;
 
 // The maximum amount of workers the binary supports. 32 should be way higher than what is reasonable on most machines
 const MAX_WORKERS: usize = 32;
