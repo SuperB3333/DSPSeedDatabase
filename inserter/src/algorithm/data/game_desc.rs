@@ -1,18 +1,18 @@
-use std::cell::Cell;
-
 use serde::{Deserialize, Serialize};
 
-#[derive(Default, Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct GameDesc {
-    #[serde(default)]
-    pub seed: i32,
     #[serde(default = "GameDesc::default_star_count")]
     pub star_count: usize,
     #[serde(default = "GameDesc::default_resource_multiplier")]
     pub resource_multiplier: f32,
-    #[serde(skip)]
-    pub habitable_count: Cell<i32>,
+    #[serde(default = "GameDesc::default_hive_initial_colonize")]
+    pub hive_initial_colonize: f64,
+    #[serde(default = "GameDesc::default_hive_max_density")]
+    pub hive_max_density: f64,
+    #[serde(default)]
+    pub use_actual_veins: bool,
 }
 
 impl GameDesc {
@@ -20,6 +20,12 @@ impl GameDesc {
         64
     }
     pub fn default_resource_multiplier() -> f32 {
+        1.0
+    }
+    pub fn default_hive_initial_colonize() -> f64 {
+        1.0
+    }
+    pub fn default_hive_max_density() -> f64 {
         1.0
     }
 
@@ -31,7 +37,7 @@ impl GameDesc {
         self.resource_multiplier <= 0.1001
     }
 
-    pub fn oil_amount_multipler(&self) -> f32 {
+    pub fn oil_amount_multiplier(&self) -> f32 {
         if self.is_rare_resource() {
             0.5
         } else {
@@ -44,6 +50,17 @@ impl GameDesc {
             0.8
         } else {
             1.0
+        }
+    }
+}
+impl Default for GameDesc {
+    fn default() -> Self {
+        Self {
+            star_count: 64,
+            resource_multiplier: 1.0,
+            hive_initial_colonize: 1.0,
+            hive_max_density: 1.0,
+            use_actual_veins: false
         }
     }
 }

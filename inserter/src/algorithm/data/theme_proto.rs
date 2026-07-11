@@ -1,3 +1,5 @@
+use crate::algorithm::data::vector2::Vector2;
+
 use super::enums::{PlanetType, ThemeDistribute, VeinType};
 use once_cell::sync::Lazy;
 use serde::Serialize;
@@ -11,7 +13,9 @@ pub struct ThemeProto {
     pub water_item_id: i32,
     #[serde(skip)]
     pub distribute: ThemeDistribute,
+    #[serde(skip)]
     pub temperature: f32,
+    #[serde(skip)]
     pub planet_type: PlanetType,
     #[serde(skip)]
     pub vein_spot: Vec<i32>,
@@ -27,6 +31,12 @@ pub struct ThemeProto {
     pub gas_items: Vec<i32>,
     #[serde(skip)]
     pub gas_speeds: Vec<f32>,
+    #[serde(skip)]
+    pub algos: Vec<i32>,
+    #[serde(skip)]
+    pub mod_x: Vector2,
+    #[serde(skip)]
+    pub mod_y: Vector2,
 }
 
 pub const DEFAULT_THEME_PROTO: &'static ThemeProto = &ThemeProto {
@@ -44,6 +54,9 @@ pub const DEFAULT_THEME_PROTO: &'static ThemeProto = &ThemeProto {
     rare_settings: vec![],
     gas_items: vec![],
     gas_speeds: vec![],
+    algos: vec![],
+    mod_x: Vector2(0.0, 0.0),
+    mod_y: Vector2(0.0, 0.0),
 };
 
 impl Default for ThemeProto {
@@ -69,6 +82,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 1.0, 0.3, 0.3],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![1],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 2,
@@ -85,6 +101,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![],
             gas_items: vec![1120, 1121],
             gas_speeds: vec![0.96, 0.04],
+            algos: vec![0],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 3,
@@ -101,6 +120,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![],
             gas_items: vec![1120, 1121],
             gas_speeds: vec![0.96, 0.04],
+            algos: vec![0],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 4,
@@ -117,6 +139,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![],
             gas_items: vec![1011, 1120],
             gas_speeds: vec![0.7, 0.3],
+            algos: vec![0],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 5,
@@ -133,6 +158,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![],
             gas_items: vec![1011, 1120],
             gas_speeds: vec![0.7, 0.3],
+            algos: vec![0],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 6,
@@ -149,6 +177,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.18, 0.2, 0.3],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![2],
+            mod_x: Vector2(1.0, 1.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 7,
@@ -165,6 +196,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.3, 0.5, 0.7, 0.5, 0.0, 0.3, 0.2, 0.6],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![2],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 8,
@@ -181,6 +215,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 1.0, 0.3, 1.0, 0.0, 0.5, 0.2, 1.0],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![1],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 9,
@@ -189,7 +226,7 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             wind: 0.7,
             distribute: ThemeDistribute::Default,
             temperature: 5.0,
-            planet_type: PlanetType::Vocano,
+            planet_type: PlanetType::Volcano,
             vein_spot: vec![15, 15, 2, 9, 4, 2, 0],
             vein_count: vec![1.0, 1.0, 0.6, 1.0, 0.6, 0.3, 0.0],
             vein_opacity: vec![1.0, 1.0, 0.6, 1.0, 0.5, 0.3, 0.0],
@@ -197,6 +234,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.2, 0.6, 0.7, 0.0, 0.2, 0.6, 0.7, 0.0, 0.1, 0.2, 0.8],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![5],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 10,
@@ -213,6 +253,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.3, 1.0, 0.8, 1.0, 0.0, 0.2, 0.6, 0.4, 0.0, 0.1, 0.2, 0.4],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![3],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.34, -0.15),
         },
         ThemeProto {
             id: 11,
@@ -225,10 +268,20 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             vein_spot: vec![3, 3, 3, 6, 12, 0, 0],
             vein_count: vec![0.5, 0.5, 0.5, 1.0, 1.2, 0.0, 0.0],
             vein_opacity: vec![0.6, 0.6, 0.9, 0.9, 1.5, 0.0, 0.0],
-            rare_veins: vec![VeinType::Fireice, VeinType::Diamond, VeinType::Grat],
-            rare_settings: vec![0.25, 0.5, 0.6, 0.6, 0.0, 0.2, 0.6, 0.7, 0.0, 0.1, 0.2, 0.5],
+            rare_veins: vec![
+                VeinType::Fireice,
+                VeinType::Diamond,
+                VeinType::Grat,
+                VeinType::Bamboo,
+            ],
+            rare_settings: vec![
+                0.25, 0.5, 0.6, 0.8, 0.0, 0.2, 0.6, 0.7, 0.0, 0.2, 0.3, 0.7, 0.1, 0.2, 0.2, 0.7,
+            ],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![4],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 12,
@@ -245,6 +298,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.25, 0.6, 0.6, 0.0, 0.25, 0.6, 0.6, 0.0, 0.1, 0.2, 0.5],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![3],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 13,
@@ -253,7 +309,7 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             wind: 0.8,
             distribute: ThemeDistribute::Interstellar,
             temperature: 4.0,
-            planet_type: PlanetType::Vocano,
+            planet_type: PlanetType::Volcano,
             vein_spot: vec![10, 10, 2, 7, 4, 1, 0],
             vein_count: vec![1.0, 1.0, 0.6, 1.0, 0.6, 0.3, 0.0],
             vein_opacity: vec![1.0, 1.0, 0.6, 1.0, 0.5, 0.3, 0.0],
@@ -261,6 +317,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![3],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 14,
@@ -277,6 +336,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.4, 0.3, 0.5, 0.0, 1.0, 0.3, 0.8, 0.0, 0.5, 0.2, 0.8],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![1],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 15,
@@ -293,6 +355,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 1.0, 0.3, 1.0, 0.0, 0.5, 0.2, 1.0],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![6],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 16,
@@ -309,6 +374,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![1.0, 1.0, 1.0, 0.9],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![7],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 17,
@@ -325,6 +393,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.7, 0.7, 0.5, 0.0, 0.1, 0.2, 0.7],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![2],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 18,
@@ -341,6 +412,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 1.0, 0.3, 1.0, 0.0, 0.5, 0.2, 1.0],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![1],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 19,
@@ -357,6 +431,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.25, 0.6, 0.6, 0.0, 0.25, 0.6, 0.6, 0.0, 0.4, 0.3, 0.9],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![8],
+            mod_x: Vector2(1.5, 1.5),
+            mod_y: Vector2(-5.0, -5.0),
         },
         ThemeProto {
             id: 20,
@@ -373,6 +450,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.25, 1.0, 0.6, 0.7, 0.0, 0.2, 0.6, 0.9, 0.0, 0.3, 0.4, 1.0],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![9],
+            mod_x: Vector2(6.0, 6.0),
+            mod_y: Vector2(8.0, 8.0),
         },
         ThemeProto {
             id: 21,
@@ -389,6 +469,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![],
             gas_items: vec![1120, 1121],
             gas_speeds: vec![0.84, 0.16],
+            algos: vec![0],
+            mod_x: Vector2(0.0, 0.0),
+            mod_y: Vector2(0.0, 0.0),
         },
         ThemeProto {
             id: 22,
@@ -405,6 +488,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 1.0, 0.5, 1.0, 0.0, 0.6, 0.25, 1.0],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![10],
+            mod_x: Vector2(1.0, 1.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 23,
@@ -421,6 +507,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.7, 0.2, 0.6, 0.0, 1.0, 1.0, 0.84],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![11],
+            mod_x: Vector2(1.5, 1.5),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 24,
@@ -437,11 +526,14 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.3, 1.0, 0.8, 1.0, 0.0, 1.0, 0.7, 1.0, 0.0, 0.4, 0.5, 0.7],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![12],
+            mod_x: Vector2(1.0, 1.0),
+            mod_y: Vector2(1.0, 1.0),
         },
         ThemeProto {
             id: 25,
             name: "Desert 11",
-            water_item_id: -2,
+            water_item_id: 0,
             wind: 1.0,
             distribute: ThemeDistribute::Interstellar,
             temperature: 0.0,
@@ -453,6 +545,9 @@ pub static THEME_PROTOS: Lazy<Vec<ThemeProto>> = Lazy::new(|| {
             rare_settings: vec![0.0, 0.5, 0.3, 1.0, 0.0, 1.0, 0.3, 1.0, 0.0, 0.5, 0.2, 1.0],
             gas_items: vec![],
             gas_speeds: vec![],
+            algos: vec![13],
+            mod_x: Vector2(1.0, 1.0),
+            mod_y: Vector2(3.0, 3.0),
         },
     ]
 });

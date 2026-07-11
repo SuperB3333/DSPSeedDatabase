@@ -3,15 +3,13 @@ use crate::algorithm::data::enums::{PlanetType, ORES};
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::worldgen::galaxy_gen::create_galaxy;
 
-pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> Result<(String, String), Box<dyn std::error::Error>> {
-    let mut game_desc: GameDesc = GameDesc::default();
-    game_desc.seed = seed;
-    game_desc.star_count = star_count;
-    game_desc.resource_multiplier = resource_multiplier;
-    let galaxy = create_galaxy(&game_desc);
+pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::Error>> {
+    let game_desc: GameDesc = GameDesc::default();
+    let hab_count = std::cell::Cell::new(0i32);
+    let galaxy = create_galaxy(seed, &game_desc, &hab_count);
 
-    let mut stars: String = String::with_capacity(star_count * 128);
-    let mut planets: String = String::with_capacity(star_count * 256 * 5);
+    let mut stars: String = String::with_capacity(64 * 128);
+    let mut planets: String = String::with_capacity(64 * 256 * 5);
 
     for solar_system in galaxy.stars {
         let star = solar_system.star.clone();
@@ -25,7 +23,7 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
                                star.get_luminosity(),
                                star.get_dyson_radius(),
                                star.star_type as i32 + 1,
-                               *star.get_spectr() as i32
+                               star.get_spectr() as i32
         ).as_str());
 
         for (index, ore) in ORES[1..15].iter().enumerate() {
@@ -82,12 +80,12 @@ pub fn gen_formatted(seed: i32, star_count: usize, resource_multiplier: f32) -> 
                                      planet.get_rotation_period() == planet.get_orbital_period()
             ).as_str());
 
-            let veins = planet.get_veins();
+            let veins = planet.get_estimated_veins();
             // OPTIMIZATION: Use fixed-size array indexed by VeinType discriminant instead of HashMap.
             // VeinType is #[repr(i32)] with variants None=0..Max=15, so a 16-element array gives
             // O(1) lookup with zero heap allocation, vs HashMap which allocates per-planet.
             // Impact: Eliminates ~256K HashMap allocations per 1000 seeds in the hot loop.
-            let mut vein_map: [Option<&data::vein::Vein>; 16] = [None; 16];
+            let mut vein_map: [Option<&data::vein::EstimatedVein>; 16] = [None; 16];
             for v in veins.iter() {
                 vein_map[v.vein_type as usize] = Some(v);
             }
