@@ -78,9 +78,6 @@ macro_rules! log_debug {
 #[macro_export]
 macro_rules! error_return {
     ($($arg:tt)*) => {
-        if $crate::logging::enabled($crate::logging::LEVEL_ERROR) {
-            $crate::logging::log_line("error", &format!($($arg)*), "9");
-        }
         return Err(anyhow::anyhow!($($arg)*));
     }
 }
