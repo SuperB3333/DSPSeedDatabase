@@ -1,7 +1,7 @@
 use crate::misc::{create_db_schema, split_chunks};
 use crate::{
     log_info, log_warn, BENCHMARK, CHECKPOINT_FILE, END_SEED, PROGRESS_WORKERS, START_SEED,
-    WORKER_THREADS,
+    TEST_ONLY, WORKER_THREADS,
 };
 use anyhow::Result;
 use std::fs::OpenOptions;
@@ -40,7 +40,7 @@ pub fn load_workloads() -> Result<Vec<Range<i32>>> {
         }
     };
 
-    if !*BENCHMARK && !(create_db_schema() == had_checkpoints) {
+    if !*BENCHMARK && !*TEST_ONLY && !(create_db_schema() == had_checkpoints) {
         log_warn!(
             "Found checkpoints and no db schema or the other way around. Data might be corrupt!"
         )

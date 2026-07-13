@@ -47,6 +47,7 @@ lazy_static! {
 
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
+    static ref TEST_ONLY: bool = env_int!("TEST_ONLY", 0) == 1;
 
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
 
@@ -95,6 +96,9 @@ fn run() -> Result<()> {
 
     if *BENCHMARK {
         log_info!("Benchmark mode enabled; database writes are disabled");
+    }
+    if *TEST_ONLY {
+        log_info!("Test-only mode enabled; database transactions will be rolled back");
     }
 
     if !check_db_connection() {
@@ -153,7 +157,7 @@ fn run() -> Result<()> {
     }
     let mut last_progress: Vec<i32> = vec![];
     loop {
-        if !*BENCHMARK {
+        if !*BENCHMARK && !*TEST_ONLY {
             write_checkpoints().context("failed to write checkpoints")?;
         }
         let cur_progress: Vec<i32> = PROGRESS_WORKERS.iter().map(|x| x.load(Ordering::Relaxed)).collect();

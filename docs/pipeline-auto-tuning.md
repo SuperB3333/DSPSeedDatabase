@@ -3,7 +3,7 @@
 `tools/tune_pipeline.py` independently sweeps worker threads, writer threads, and commit counts. It measures external wall time with `time.perf_counter()`, runs each candidate 3 times by default, and uses median seeds/second. The recommendation is the smallest candidate at or above `95.00%` of the peak median; the output also reports the efficient ceiling.
 
 ```bash
-# Worker-only: executes workloads but changes 0 configuration files.
+# Worker-only: executes workloads but changes 0 persistent files or database rows.
 python3 tools/tune_pipeline.py --test worker --test-only
 
 # Preview a Docker writer sweep: 0 workloads, 0 database writes, 0 files changed.
@@ -15,6 +15,6 @@ python3 tools/tune_pipeline.py --test writer --test commit \
   --allow-db-writes --start-seed 8000000 --apply-to tuning.env
 ```
 
-Worker sweeps force `BENCHMARK=1`. Writer and commit sweeps force `BENCHMARK=0`, require `--allow-db-writes` and an explicit `--start-seed`, and leave inserted rows in PostgreSQL. Use a dedicated database or unused seed range.
+Worker sweeps force `BENCHMARK=1`. Writer and commit sweeps force `BENCHMARK=0`. Persistent writer/commit sweeps require `--allow-db-writes` and an explicit `--start-seed`, and leave inserted rows in PostgreSQL. Use a dedicated database or unused seed range.
 
-`--test-only` prevents configuration writes. `--dry-run` executes 0 workloads and changes 0 files. `--apply-to ENV_FILE` offers a separate confirmation prompt for every recommendation; rejecting one setting leaves it unchanged and continues with the remaining settings. The `{docker_env}` command token expands to Docker `-e NAME=VALUE` arguments.
+`--test-only` sets `TEST_ONLY=1`: it requires an existing schema, skips schema creation and checkpoint writes, and rolls every writer transaction back after `COPY`. It changes 0 persistent files and 0 PostgreSQL rows, but cannot measure durable commit cost. `--dry-run` executes 0 workloads and changes 0 files. `--apply-to ENV_FILE` offers a separate confirmation prompt for every recommendation; rejecting one setting leaves it unchanged and continues with the remaining settings. The `{docker_env}` command token expands to Docker `-e NAME=VALUE` arguments.

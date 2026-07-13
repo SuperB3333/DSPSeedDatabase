@@ -222,6 +222,7 @@ def run_sweep(
                 "NO_TUI": "1",
                 "LOG_LEVEL": "error",
                 "BENCHMARK": "1" if sweep.name == "worker" else "0",
+                "TEST_ONLY": "1" if args.test_only else "0",
                 sweep.env_name: str(candidate),
             }
             command = build_command(args.command, overrides)
@@ -305,7 +306,11 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--order-seed", type=int, default=0, help="candidate randomization seed")
     parser.add_argument("--start-seed", type=int, help="first seed for trials; required for DB-writing tests")
     parser.add_argument("--allow-db-writes", action="store_true", help="acknowledge writer/commit trials insert persistent database rows")
-    parser.add_argument("--test-only", action="store_true", help="run measurements but never update a configuration file")
+    parser.add_argument(
+        "--test-only",
+        action="store_true",
+        help="run without persistent pipeline or configuration changes",
+    )
     parser.add_argument("--dry-run", action="store_true", help="print trial commands without running workloads or changing files")
     parser.add_argument("--apply-to", type=Path, metavar="ENV_FILE", help="offer to write confirmed recommendations to this env file")
     return parser
@@ -319,9 +324,9 @@ def main() -> int:
 
     if args.test_only and args.apply_to is not None:
         parser.error("--test-only cannot be combined with --apply-to")
-    if has_database_sweep and not args.dry_run and not args.allow_db_writes:
+    if has_database_sweep and not args.dry_run and not args.test_only and not args.allow_db_writes:
         parser.error("writer/commit tests require --allow-db-writes")
-    if has_database_sweep and not args.dry_run and args.start_seed is None:
+    if has_database_sweep and not args.dry_run and not args.test_only and args.start_seed is None:
         parser.error("writer/commit tests require an explicit --start-seed")
 
     warn_partial_batches(sweeps, args)
