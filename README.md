@@ -14,7 +14,7 @@ A high-performance pipeline for generating, indexing, and searching Dyson Sphere
 ### 1. Infrastructure
 The fastest way to get the database ready is via Docker Compose:
 ```bash
-docker-compose -f compose/compose.postgres.yaml up -d
+docker compose -f compose/compose.postgres.yaml up -d
 ```
 
 ### 2. Schema Setup
