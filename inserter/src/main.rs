@@ -4,8 +4,8 @@ mod generate_csv;
 mod logging;
 mod metrics;
 mod misc;
-mod progress;
 mod threads;
+mod progress;
 
 use crate::checkpoint::{load_workloads, write_checkpoints};
 use crate::misc::check_db_connection;
