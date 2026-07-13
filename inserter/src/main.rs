@@ -93,6 +93,7 @@ fn run() -> Result<()> {
 
     // capture start time for performance evaluation
     let start = Instant::now();
+    let _diagnostics_report = diagnostics::report_on_drop();
 
     if *BENCHMARK {
         log_info!("Benchmark mode enabled; database writes are disabled");
@@ -197,7 +198,6 @@ fn run() -> Result<()> {
     }
 
     let elapsed = start.elapsed();
-    diagnostics::report(elapsed);
     let per_second = (*END_SEED - *START_SEED) as f32 / elapsed.as_secs() as f32;
     println!("seeds/sec: {:?}", per_second);
     Ok(())

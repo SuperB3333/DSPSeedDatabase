@@ -1,6 +1,6 @@
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 use std::sync::LazyLock;
-use std::time::Duration;
+use std::time::{Duration, Instant};
 
 static ENABLED: LazyLock<bool> = LazyLock::new(|| {
     matches!(
@@ -30,6 +30,20 @@ static MAX_BATCH_SIZE: AtomicU64 = AtomicU64::new(0);
 
 pub fn enabled() -> bool {
     *ENABLED
+}
+
+pub struct ReportOnDrop(Option<Instant>);
+
+impl Drop for ReportOnDrop {
+    fn drop(&mut self) {
+        if let Some(start) = self.0 {
+            report(start.elapsed());
+        }
+    }
+}
+
+pub fn report_on_drop() -> ReportOnDrop {
+    ReportOnDrop(enabled().then(Instant::now))
 }
 
 fn add_duration(counter: &AtomicU64, duration: Duration) {
@@ -81,11 +95,7 @@ fn seconds(counter: &AtomicU64) -> f64 {
     counter.load(Relaxed) as f64 / 1_000_000_000.0
 }
 
-pub fn report(elapsed: Duration) {
-    if !enabled() {
-        return;
-    }
-
+fn report(elapsed: Duration) {
     let elapsed_seconds = elapsed.as_secs_f64();
     let generated_seeds = GENERATED_SEEDS.load(Relaxed);
     let csv_bytes = CSV_BYTES.load(Relaxed);
