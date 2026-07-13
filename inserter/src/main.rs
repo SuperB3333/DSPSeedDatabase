@@ -6,7 +6,7 @@ mod metrics;
 mod misc;
 mod threads;
 
-use crate::checkpoint::{load_workloads, write_checkpoints};
+use crate::checkpoint::{load_workloads, write_checkpoints, CheckpointFrequency};
 use crate::misc::check_db_connection;
 use crate::{metrics::write_metrics, threads::*};
 use anyhow::{anyhow, Context, Result};
@@ -46,6 +46,11 @@ lazy_static! {
     static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
 
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
+    static ref CHECKPOINT_FREQUENCY: CheckpointFrequency = CheckpointFrequency::parse(
+        &std::env::var("CHECKPOINT_FREQUENCY").unwrap_or_else(|_| "medium".to_string())
+    )
+    .expect("invalid CHECKPOINT_FREQUENCY");
+    static ref CHECKPOINT_OVERWRITE: bool = env_int!("CHECKPOINT_OVERWRITE", 0) == 1;
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
 
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
@@ -66,8 +71,6 @@ lazy_static! {
             PG_DBNAME.as_str()
         )
     };
-
-    static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
 }
 
 #[cfg(windows)]
@@ -152,9 +155,12 @@ fn run() -> Result<()> {
         stdout.execute(crossterm::cursor::Hide)?;
     }
     let mut last_progress: Vec<i32> = vec![];
+    let checkpoint_interval = CHECKPOINT_FREQUENCY.interval();
+    let mut next_checkpoint = checkpoint_interval.map(|interval| Instant::now() + interval);
     loop {
-        if !*BENCHMARK {
+        if !*BENCHMARK && next_checkpoint.is_some_and(|next| Instant::now() >= next) {
             write_checkpoints().context("failed to write checkpoints")?;
+            next_checkpoint = checkpoint_interval.map(|interval| Instant::now() + interval);
         }
         let cur_progress: Vec<i32> = PROGRESS_WORKERS.iter().map(|x| x.load(Ordering::Relaxed)).collect();
         let advanced = cur_progress.iter().zip(last_progress.iter()).map(|(cur, last)| (last - cur) as f32 / MAIN_INTERVAL);
@@ -168,7 +174,7 @@ fn run() -> Result<()> {
                 .map_err(|err| anyhow!("failed to write metrics: {}", err))?;
         }
 
-        thread::sleep(Duration::from_millis(1000 * MAIN_INTERVAL as u64));
+        thread::sleep(Duration::from_secs_f32(MAIN_INTERVAL));
         if work_handles.iter().all(|i| i.is_finished()) {
             log_info!("All workers have finished!");
             break;
@@ -185,6 +191,9 @@ fn run() -> Result<()> {
             .join()
             .map_err(|_| anyhow!("worker thread panicked"))?
             .context("worker thread failed")?;
+    }
+    if !*BENCHMARK && checkpoint_interval.is_some() {
+        write_checkpoints().context("failed to write final checkpoints")?;
     }
     drop(entry_sender); // close the channel so recv() returns Err instead of blocking
     log_info!("Waiting for writer threads to automatically shut down");
