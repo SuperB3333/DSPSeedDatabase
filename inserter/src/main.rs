@@ -4,6 +4,7 @@ mod generate_csv;
 mod logging;
 mod metrics;
 mod misc;
+mod progress;
 mod threads;
 
 use crate::checkpoint::{load_workloads, write_checkpoints};
@@ -109,6 +110,8 @@ fn run() -> Result<()> {
     log_info!("Loading workloads...");
     let workloads = load_workloads().context("failed to load workloads")?;
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
+    let planned_seeds = workloads.iter().map(|workload| workload.len() as u64).sum();
+    let progress_logger = progress::ProgressLogger::start(planned_seeds, entry_reciever.clone())?;
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
@@ -193,6 +196,9 @@ fn run() -> Result<()> {
             .join()
             .map_err(|_| anyhow!("writer thread panicked"))?
             .context("writer thread failed")?;
+    }
+    if let Some(logger) = progress_logger {
+        logger.finish()?;
     }
 
     let elapsed = start.elapsed();
