@@ -114,8 +114,6 @@ fn run() -> Result<()> {
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
-    let planned_seeds = workloads.iter().map(|workload| workload.len() as u64).sum();
-    let progress_logger = progress::ProgressLogger::start(planned_seeds, entry_reciever.clone())?;
     log_info!("Starting worker threads...");
     // Launch worker threads
     for (id, work) in workloads.iter().enumerate() {
@@ -148,6 +146,8 @@ fn run() -> Result<()> {
         }
     }
 
+    let planned_seeds = workloads.iter().map(|workload| workload.len() as u64).sum();
+    let progress_logger = progress::ProgressLogger::start(planned_seeds, entry_reciever.clone())?;
     log_info!("Starting main thread loop");
     // Main thread takes checkpoints and displays metrics to the terminal
     if *TUI {
