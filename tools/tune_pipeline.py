@@ -218,7 +218,7 @@ def run_sweep(
                 "WRITER_THREADS": str(args.base_writers),
                 "COMMIT_COUNT": str(args.base_commit_count),
                 "CHANNEL_SIZE": str(args.channel_size),
-                "CHECKPOINT_FILE": str(checkpoint),
+                "CHECKPOINT_FILE": "/dev/null" if args.test_only else str(checkpoint),
                 "NO_TUI": "1",
                 "LOG_LEVEL": "error",
                 "BENCHMARK": "1" if sweep.name == "worker" else "0",

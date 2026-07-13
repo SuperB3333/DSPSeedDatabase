@@ -4,6 +4,7 @@ mod generate_csv;
 mod logging;
 mod metrics;
 mod misc;
+mod test_mode;
 mod threads;
 
 use crate::checkpoint::{load_workloads, write_checkpoints};
@@ -47,7 +48,6 @@ lazy_static! {
 
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
-    static ref TEST_ONLY: bool = env_int!("TEST_ONLY", 0) == 1;
 
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
 
@@ -97,7 +97,7 @@ fn run() -> Result<()> {
     if *BENCHMARK {
         log_info!("Benchmark mode enabled; database writes are disabled");
     }
-    if *TEST_ONLY {
+    if test_mode::enabled() {
         log_info!("Test-only mode enabled; database transactions will be rolled back");
     }
 
@@ -111,7 +111,11 @@ fn run() -> Result<()> {
 
     // Prepare thread resources
     log_info!("Loading workloads...");
-    let workloads = load_workloads().context("failed to load workloads")?;
+    let workloads = if test_mode::enabled() {
+        test_mode::workloads()
+    } else {
+        load_workloads().context("failed to load workloads")?
+    };
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
@@ -136,7 +140,13 @@ fn run() -> Result<()> {
             commit_handles.push(
                 thread::Builder::new()
                     .name(format!("writer_{}", id))
-                    .spawn(move || commit_thread(thread_receiver))
+                    .spawn(move || {
+                        if test_mode::enabled() {
+                            test_mode::rollback_writer(thread_receiver)
+                        } else {
+                            commit_thread(thread_receiver)
+                        }
+                    })
                     .with_context(|| format!("failed to spawn writer thread {}", id))?,
             );
         }
@@ -157,7 +167,7 @@ fn run() -> Result<()> {
     }
     let mut last_progress: Vec<i32> = vec![];
     loop {
-        if !*BENCHMARK && !*TEST_ONLY {
+        if !*BENCHMARK {
             write_checkpoints().context("failed to write checkpoints")?;
         }
         let cur_progress: Vec<i32> = PROGRESS_WORKERS.iter().map(|x| x.load(Ordering::Relaxed)).collect();
