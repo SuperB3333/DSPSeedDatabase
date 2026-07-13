@@ -47,6 +47,7 @@ lazy_static! {
 
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
+    static ref PRINT_CONFIG: bool = env_int!("PRINT_CONFIG", 0) == 1;
 
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
 
@@ -85,10 +86,48 @@ fn main() -> ExitCode {
     }
 }
 
+fn validate_config() -> Result<()> {
+    if *WORKER_THREADS <= 0 {
+        error_return!("WORKER_THREADS must be greater than 0");
+    }
+    if *WRITER_THREADS <= 0 {
+        error_return!("WRITER_THREADS must be greater than 0");
+    }
+    if *COMMIT_COUNT == 0 {
+        error_return!("COMMIT_COUNT must be greater than 0");
+    }
+    Ok(())
+}
+
+fn print_effective_config() {
+    println!("config.start_seed={}", *START_SEED);
+    println!("config.end_seed={}", *END_SEED);
+    println!("config.seed_count={}", *END_SEED - *START_SEED);
+    println!("config.worker_threads={}", *WORKER_THREADS);
+    println!("config.writer_threads={}", *WRITER_THREADS);
+    println!("config.commit_count={}", *COMMIT_COUNT);
+    println!("config.channel_size={}", *CHANNEL_SIZE);
+    println!("config.benchmark={}", *BENCHMARK);
+    println!("config.checkpoint_file={}", *CHECKPOINT_FILE);
+    println!("config.database.user={}", *PG_USER);
+    println!("config.database.host={}", *PG_NETLOC);
+    println!("config.database.port={}", *PG_PORT);
+    println!("config.database.name={}", *PG_DBNAME);
+    println!("config.database.password=redacted");
+    println!("config.log_level={}", std::env::var("LOG_LEVEL").unwrap_or_else(|_| "info".to_string()));
+    println!("config.print_config=true");
+}
+
 fn run() -> Result<()> {
+    validate_config()?;
     assert!(*START_SEED < *END_SEED, "START_SEED is lower than END_SEED");
     assert!(*WORKER_THREADS < (*END_SEED - *START_SEED), "More worker threads than seeds to process");
     assert!(*WORKER_THREADS < MAX_WORKERS as i32, "More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher.");
+
+    if *PRINT_CONFIG {
+        print_effective_config();
+        return Ok(());
+    }
 
     // capture start time for performance evaluation
     let start = Instant::now();
