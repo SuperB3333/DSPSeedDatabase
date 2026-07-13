@@ -60,25 +60,6 @@ The Rust generator is configured via environment variables:
 - `CHECKPOINT_FILE`: Path to the progress tracking file (default: `checkpoints.txt`).
 - `BENCHMARK=1`: Disables DB writes to test pure generation throughput.
 
-### Pipeline auto-tuning
-
-`tools/tune_pipeline.py` independently sweeps worker threads, writer threads, and commit counts. It uses precise external wall-clock measurements, runs each candidate 3 times by default, and recommends the smallest candidate reaching 95% of peak median throughput.
-
-```bash
-# Worker-only test: executes workloads but never writes configuration.
-python3 tools/tune_pipeline.py --test worker --test-only
-
-# Preview a Docker writer sweep without workloads, database writes, or file changes.
-python3 tools/tune_pipeline.py --test writer --dry-run \
-  --command "docker compose -f compose/compose.yaml run --rm {docker_env} seedfinder"
-
-# Run writer and commit sweeps against a dedicated database range.
-python3 tools/tune_pipeline.py --test writer --test commit \
-  --allow-db-writes --start-seed 8000000 --apply-to tuning.env
-```
-
-Worker tests force `BENCHMARK=1`. Writer and commit tests force `BENCHMARK=0`, require `--allow-db-writes` plus an explicit `--start-seed`, and leave inserted rows in PostgreSQL; use a dedicated database or range. `--test-only` prevents configuration writes, while `--dry-run` executes 0 workloads and changes 0 files. With `--apply-to`, every recommended variable receives a separate confirmation prompt; rejecting one setting continues to the next.
-
 ## Sharp Edges
 
 - **Checkpoint Invariants:** The generator bails out if it detects a mismatch between the current config and an existing `checkpoints.txt`. If you change your seed range or worker count, you must delete the old checkpoint file.
