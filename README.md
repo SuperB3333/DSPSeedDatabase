@@ -58,13 +58,11 @@ The Rust generator is configured via environment variables:
 - `WORKER_THREADS`: Number of threads generating galaxy data.
 - `WRITER_THREADS`: Number of threads pushing data to Postgres.
 - `CHECKPOINT_FILE`: Path to the progress tracking file (default: `checkpoints.txt`).
-- `CHECKPOINT_FREQUENCY`: Checkpoint write cadence: `none` (disabled), `very_low` (60 s), `low` (30 s), `medium` (10 s, default), `high` (1 s), `xhigh` (250 ms), or `atomic` (100 ms). Each write is atomically replaced.
-- `CHECKPOINT_OVERWRITE=1`: Remove an existing `CHECKPOINT_FILE` and start from `START_SEED`; use this to intentionally discard a previous resume position.
 - `BENCHMARK=1`: Disables DB writes to test pure generation throughput.
 
 ## Sharp Edges
 
-- **Checkpoint Invariants:** The generator rejects a checkpoint file with a different entry count than `WORKER_THREADS`. Set `CHECKPOINT_OVERWRITE=1` to intentionally ignore it.
+- **Checkpoint Invariants:** The generator bails out if it detects a mismatch between the current config and an existing `checkpoints.txt`. If you change your seed range or worker count, you must delete the old checkpoint file.
 - **UNLOGGED Tables:** For speed, tables are `UNLOGGED`. If the database crashes, data may be lost. Run `ALTER TABLE ... SET LOGGED` if you require durability.
 - **Database Load:** The generator can easily saturate a standard Postgres installation. If you see "channel stall" warnings, try increasing `COMMIT_COUNT` or decreasing `WORKER_THREADS`.
 
