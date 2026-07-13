@@ -9,6 +9,7 @@ mod threads;
 
 use crate::checkpoint::{load_workloads, write_checkpoints};
 use crate::misc::check_db_connection;
+use crate::progress::{commit_thread, worker_thread};
 use crate::{metrics::write_metrics, threads::*};
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
@@ -110,11 +111,11 @@ fn run() -> Result<()> {
     log_info!("Loading workloads...");
     let workloads = load_workloads().context("failed to load workloads")?;
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
-    let planned_seeds = workloads.iter().map(|workload| workload.len() as u64).sum();
-    let progress_logger = progress::ProgressLogger::start(planned_seeds, entry_reciever.clone())?;
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];
+    let planned_seeds = workloads.iter().map(|workload| workload.len() as u64).sum();
+    let progress_logger = progress::ProgressLogger::start(planned_seeds, entry_reciever.clone())?;
     log_info!("Starting worker threads...");
     // Launch worker threads
     for (id, work) in workloads.iter().enumerate() {

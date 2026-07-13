@@ -2,8 +2,9 @@ use crate::{
     BENCHMARK, CHANNEL_SIZE, COMMITTED_SEEDS, COMMIT_COUNT, WORKER_THREADS, WRITER_THREADS,
 };
 use anyhow::{Context, Result};
-use crossbeam_channel::Receiver;
+use crossbeam_channel::{Receiver, Sender};
 use std::fs;
+use std::ops::Range;
 use std::sync::atomic::{AtomicU64, Ordering::Relaxed};
 use std::sync::{Arc, Condvar, LazyLock, Mutex};
 use std::thread::{self, JoinHandle};
@@ -22,12 +23,9 @@ static ENABLED: LazyLock<bool> = LazyLock::new(|| {
 static WORKER_TIME_NS: AtomicU64 = AtomicU64::new(0);
 static WORKERS_FINISHED: AtomicU64 = AtomicU64::new(0);
 static ACTIVE_WORKERS: AtomicU64 = AtomicU64::new(0);
-static DB_CONNECTION_NS: AtomicU64 = AtomicU64::new(0);
-static DB_TIME_NS: AtomicU64 = AtomicU64::new(0);
-static DB_WAIT_NS: AtomicU64 = AtomicU64::new(0);
-static DB_BATCHES: AtomicU64 = AtomicU64::new(0);
-static WRITERS_WAITING: AtomicU64 = AtomicU64::new(0);
-static WRITERS_DB_ACTIVE: AtomicU64 = AtomicU64::new(0);
+static WRITER_TIME_NS: AtomicU64 = AtomicU64::new(0);
+static WRITERS_FINISHED: AtomicU64 = AtomicU64::new(0);
+static ACTIVE_WRITERS: AtomicU64 = AtomicU64::new(0);
 
 pub fn enabled() -> bool {
     *ENABLED
@@ -37,37 +35,30 @@ fn add_duration(counter: &AtomicU64, duration: Duration) {
     counter.fetch_add(duration.as_nanos().min(u64::MAX as u128) as u64, Relaxed);
 }
 
-pub fn record_worker(duration: Duration) {
-    add_duration(&WORKER_TIME_NS, duration);
+pub fn worker_thread(seeds: Range<i32>, sender: Sender<(String, String)>, id: usize) -> Result<()> {
+    if !enabled() {
+        return crate::threads::worker_thread(seeds, sender, id);
+    }
+    ACTIVE_WORKERS.fetch_add(1, Relaxed);
+    let started = Instant::now();
+    let result = crate::threads::worker_thread(seeds, sender, id);
+    add_duration(&WORKER_TIME_NS, started.elapsed());
     WORKERS_FINISHED.fetch_add(1, Relaxed);
     ACTIVE_WORKERS.fetch_sub(1, Relaxed);
+    result
 }
 
-pub fn worker_started() {
-    ACTIVE_WORKERS.fetch_add(1, Relaxed);
-}
-
-pub fn record_db_connection(duration: Duration) {
-    add_duration(&DB_CONNECTION_NS, duration);
-}
-
-pub fn record_db_wait(duration: Duration) {
-    add_duration(&DB_WAIT_NS, duration);
-    WRITERS_WAITING.fetch_sub(1, Relaxed);
-}
-
-pub fn db_wait_started() {
-    WRITERS_WAITING.fetch_add(1, Relaxed);
-}
-
-pub fn record_db_batch(duration: Duration) {
-    add_duration(&DB_TIME_NS, duration);
-    DB_BATCHES.fetch_add(1, Relaxed);
-    WRITERS_DB_ACTIVE.fetch_sub(1, Relaxed);
-}
-
-pub fn db_batch_started() {
-    WRITERS_DB_ACTIVE.fetch_add(1, Relaxed);
+pub fn commit_thread(receiver: Receiver<(String, String)>) -> Result<()> {
+    if !enabled() {
+        return crate::threads::commit_thread(receiver);
+    }
+    ACTIVE_WRITERS.fetch_add(1, Relaxed);
+    let started = Instant::now();
+    let result = crate::threads::commit_thread(receiver);
+    add_duration(&WRITER_TIME_NS, started.elapsed());
+    WRITERS_FINISHED.fetch_add(1, Relaxed);
+    ACTIVE_WRITERS.fetch_sub(1, Relaxed);
+    result
 }
 
 struct Snapshot {
@@ -207,7 +198,8 @@ fn report(
     let committed_percent = percent(committed, planned_seeds);
     let overall = if *BENCHMARK { generated } else { committed };
     let status = if complete { "complete" } else { "running" };
-    let generation_time = estimated_generation_time(elapsed);
+    let generation_time = estimated_thread_time(&WORKER_TIME_NS, &ACTIVE_WORKERS, elapsed);
+    let writer_time = estimated_thread_time(&WRITER_TIME_NS, &ACTIVE_WRITERS, elapsed);
 
     eprintln!(
         "[progress] status={} elapsed={} progress={}/{} ({:.2}%) generated={}/{} ({:.2}%) committed={}/{} ({:.2}%) queue={}/{}",
@@ -233,18 +225,16 @@ fn report(
         average_committed_rate
     );
     eprintln!(
-        "[progress] timing: generation_worker={} db_connection={} db_active={} writer_wait={} workers_active={} workers_finished={}/{} writers_waiting={} writers_db_active={} db_batches={} dominant_thread_time={} likely_bottleneck={}",
+        "[progress] timing: generation_worker={} writer_pipeline={} workers_active={} workers_finished={}/{} writers_active={} writers_finished={}/{} dominant_thread_time={} likely_bottleneck={}",
         format_nanos(generation_time),
-        format_nanos(DB_CONNECTION_NS.load(Relaxed)),
-        format_nanos(DB_TIME_NS.load(Relaxed)),
-        format_nanos(DB_WAIT_NS.load(Relaxed)),
+        format_nanos(writer_time),
         ACTIVE_WORKERS.load(Relaxed),
         WORKERS_FINISHED.load(Relaxed),
         *WORKER_THREADS,
-        WRITERS_WAITING.load(Relaxed),
-        WRITERS_DB_ACTIVE.load(Relaxed),
-        DB_BATCHES.load(Relaxed),
-        dominant_stage(generation_time),
+        ACTIVE_WRITERS.load(Relaxed),
+        WRITERS_FINISHED.load(Relaxed),
+        if *BENCHMARK { 0 } else { *WRITER_THREADS as u64 },
+        dominant_stage(generation_time, writer_time),
         likely_bottleneck(generated, committed, planned_seeds, queue)
     );
     print_process_stats(read_process_stats());
@@ -276,19 +266,18 @@ fn percent(value: u64, total: u64) -> f64 {
     }
 }
 
-fn estimated_generation_time(elapsed: Duration) -> u64 {
+fn estimated_thread_time(completed: &AtomicU64, active: &AtomicU64, elapsed: Duration) -> u64 {
     let active_time = elapsed
         .as_nanos()
-        .saturating_mul(ACTIVE_WORKERS.load(Relaxed) as u128)
+        .saturating_mul(active.load(Relaxed) as u128)
         .min(u64::MAX as u128) as u64;
-    WORKER_TIME_NS.load(Relaxed).saturating_add(active_time)
+    completed.load(Relaxed).saturating_add(active_time)
 }
 
-fn dominant_stage(generation_time: u64) -> &'static str {
+fn dominant_stage(generation_time: u64, writer_time: u64) -> &'static str {
     let stages = [
         ("generation", generation_time),
-        ("database", DB_TIME_NS.load(Relaxed)),
-        ("writer_wait", DB_WAIT_NS.load(Relaxed)),
+        ("writer_pipeline", writer_time),
     ];
     stages
         .into_iter()
