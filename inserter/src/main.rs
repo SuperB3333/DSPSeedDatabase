@@ -1,5 +1,6 @@
 mod algorithm;
 mod checkpoint;
+mod diagnostics;
 mod generate_csv;
 mod logging;
 mod metrics;
@@ -196,6 +197,7 @@ fn run() -> Result<()> {
     }
 
     let elapsed = start.elapsed();
+    diagnostics::report(elapsed);
     let per_second = (*END_SEED - *START_SEED) as f32 / elapsed.as_secs() as f32;
     println!("seeds/sec: {:?}", per_second);
     Ok(())

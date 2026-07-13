@@ -59,6 +59,7 @@ The Rust generator is configured via environment variables:
 - `WRITER_THREADS`: Number of threads pushing data to Postgres.
 - `CHECKPOINT_FILE`: Path to the progress tracking file (default: `checkpoints.txt`).
 - `BENCHMARK=1`: Disables DB writes to test pure generation throughput.
+- `DIAGNOSTICS=1`: Prints worker, channel, COPY, commit, payload-byte, and actual batch-size measurements after the run. Stage durations are aggregate thread time and can exceed wall-clock time when threads overlap.
 
 ## Sharp Edges
 

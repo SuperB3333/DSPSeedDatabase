@@ -1,6 +1,7 @@
 use std::ops::Range;
 use std::sync::atomic::Ordering::Relaxed;
 use std::time::Duration;
+use std::time::Instant;
 use std::io::Write;
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use postgres::{Client, NoTls};
@@ -10,9 +11,18 @@ use crate::{log_info, COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS, R
 use crate::misc::{COPY_PLANET, COPY_STAR};
 
 pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) -> Result<()> {
+    let diagnostics_enabled = crate::diagnostics::enabled();
     for seed in seeds {
+        let generation_start = diagnostics_enabled.then(Instant::now);
         let entry = gen_formatted(seed, STAR_COUNT, REC_MULTIPLIER).expect("gen_formatted failed");
+        if let Some(start) = generation_start {
+            crate::diagnostics::record_generation(start.elapsed(), entry.0.len() + entry.1.len());
+        }
+        let send_start = diagnostics_enabled.then(Instant::now);
         send.send(entry)?;
+        if let Some(start) = send_start {
+            crate::diagnostics::record_send_wait(start.elapsed());
+        }
         PROGRESS_WORKERS[id].fetch_add(1, Relaxed);
 
     }
@@ -20,9 +30,15 @@ pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usiz
     Ok(())
 }
 pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
+    let diagnostics_enabled = crate::diagnostics::enabled();
+    let connection_start = diagnostics_enabled.then(Instant::now);
     let mut client = Client::connect(&*DB_STR.as_str(), NoTls)?;
+    if let Some(start) = connection_start {
+        crate::diagnostics::record_connection(start.elapsed());
+    }
 
     'outer: loop {
+        let receive_start = diagnostics_enabled.then(Instant::now);
         let mut batch: Vec<(String, String)> = Vec::with_capacity(*COMMIT_COUNT);
         'inner: for i in 0..*COMMIT_COUNT {
             match rec.recv_timeout(Duration::new(1, 0)) {
@@ -31,9 +47,17 @@ pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
                 Err(RecvTimeoutError::Disconnected) => if i == 0 {break 'outer} else {break 'inner},
             }
         }
+        if let Some(start) = receive_start {
+            crate::diagnostics::record_batch_receive(start.elapsed());
+        }
 
+        let transaction_start = diagnostics_enabled.then(Instant::now);
         let mut txn = client.transaction()?;
+        if let Some(start) = transaction_start {
+            crate::diagnostics::record_transaction_start(start.elapsed());
+        }
 
+        let star_copy_start = diagnostics_enabled.then(Instant::now);
         {
             let mut scpy = txn.copy_in(COPY_STAR)?;
             for (star, _) in &batch {
@@ -41,7 +65,11 @@ pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
             }
             scpy.finish()?;
         }
+        if let Some(start) = star_copy_start {
+            crate::diagnostics::record_star_copy(start.elapsed());
+        }
 
+        let planet_copy_start = diagnostics_enabled.then(Instant::now);
         {
             let mut pcpy = txn.copy_in(COPY_PLANET)?;
             for (_, planet) in &batch {
@@ -49,8 +77,15 @@ pub fn commit_thread(rec: Receiver<(String, String)>) -> Result<()> {
             }
             pcpy.finish()?;
         }
+        if let Some(start) = planet_copy_start {
+            crate::diagnostics::record_planet_copy(start.elapsed());
+        }
 
+        let commit_start = diagnostics_enabled.then(Instant::now);
         txn.commit()?;
+        if let Some(start) = commit_start {
+            crate::diagnostics::record_commit(start.elapsed(), batch.len());
+        }
         COMMITTED_SEEDS.fetch_add(batch.len() as i32, std::sync::atomic::Ordering::SeqCst);
     }
     log_info!("Writer thread terminated");
