@@ -207,7 +207,7 @@ fn run() -> Result<()> {
     }
 
     let elapsed = start.elapsed();
-    let per_second = (*END_SEED - *START_SEED) as f32 / elapsed.as_secs() as f32;
-    println!("seeds/sec: {:?}", per_second);
+    let per_second = (*END_SEED - *START_SEED) as f64 / elapsed.as_secs_f64();
+    println!("took a total of {} seconds\nseeds/sec: {:.6}", elapsed.as_secs(), per_second);
     Ok(())
 }
