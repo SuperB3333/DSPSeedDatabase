@@ -4,7 +4,7 @@ use crate::{
     WORKER_THREADS,
 };
 use anyhow::Result;
-use std::fs::OpenOptions;
+use std::fs::{OpenOptions, copy};
 use std::io::Write;
 use std::ops::Range;
 use std::sync::atomic::Ordering::Relaxed;
@@ -12,16 +12,18 @@ use std::sync::LazyLock;
 static MAX_BUFFER: LazyLock<i32> = LazyLock::new(|| 2);
 
 pub fn write_checkpoints() -> Result<()> {
+    let tmp_file = format!("{}.tmp", *CHECKPOINT_FILE);
     let mut cfile = OpenOptions::new()
         .write(true)
         .create(true)
-        .open(&*CHECKPOINT_FILE)?;
+        .open(&tmp_file)?;
     PROGRESS_WORKERS
         .iter()
         .map(|i| i.load(Relaxed) - *MAX_BUFFER)
         .for_each(|x| {
             writeln!(cfile, "{}", x).unwrap();
         });
+    copy(&tmp_file, &*CHECKPOINT_FILE)?;
     Ok(())
 }
 /// Loads potential checkpoints or defaults to full seeds. Also creates db schema and looks for potential corrupted data
@@ -36,7 +38,7 @@ pub fn load_workloads() -> Result<Vec<Range<i32>>> {
         }
         None => {
             log_info!("No checkpoints found; distributing all seeds among generators");
-            (normal_workloads, false)
+            (normal_workloads.clone(), false)
         }
     };
 
@@ -45,7 +47,7 @@ pub fn load_workloads() -> Result<Vec<Range<i32>>> {
             "Found checkpoints and no db schema or the other way around. Data might be corrupt!"
         )
     }
-
+    if *crate::OVERRIDE_CHECKPOINTS { return Ok(normal_workloads); }
     Ok(workloads)
 }
 fn read_checkpoints(ends: Vec<i32>) -> Option<Vec<Range<i32>>> {

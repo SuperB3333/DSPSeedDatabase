@@ -6,9 +6,12 @@ mod metrics;
 mod misc;
 mod threads;
 
-use crate::checkpoint::{load_workloads, write_checkpoints};
-use crate::misc::check_db_connection;
-use crate::{metrics::write_metrics, threads::*};
+use crate::{
+    checkpoint::{load_workloads, write_checkpoints},
+    misc::{check_db_connection, get_cp_interval, Timer},
+    metrics::write_metrics,
+    threads::*
+};
 use anyhow::{anyhow, Context, Result};
 use crossbeam_channel::{bounded, Receiver, Sender};
 use crossterm::{
@@ -26,7 +29,7 @@ use std::{
 };
 
 
-const MAIN_INTERVAL: f32 = 0.1; // in seconds
+const MAIN_INTERVAL: u64 = 100; // in in millisecs
 const STAR_COUNT: usize = 64;
 const REC_MULTIPLIER: f32 = 1.0;
 
@@ -46,9 +49,10 @@ lazy_static! {
     static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
 
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
-    static ref BENCHMARK: bool = env_int!("BENCHMARK", 0) == 1;
+    static ref OVERRIDE_CHECKPOINTS: bool = env_bool!("OVERRIDE_CHECKPOINTS");
+    static ref BENCHMARK: bool = env_bool!("BENCHMARK");
 
-    static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_int!("NO_TUI", 0) != 1;
+    static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_bool!("NO_TUI");
 
     static ref PG_USER: String = env_str!("PG_USER", "postgres");
     static ref PG_PASS: String = env_str!("PG_PASS", "rootpassword");
@@ -66,6 +70,7 @@ lazy_static! {
             PG_DBNAME.as_str()
         )
     };
+    static ref CP_INTERVAL: Option<Duration> = get_cp_interval();
 
     static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
 }
@@ -152,12 +157,18 @@ fn run() -> Result<()> {
         stdout.execute(crossterm::cursor::Hide)?;
     }
     let mut last_progress: Vec<i32> = vec![];
+    let mut cp_clock = match *CP_INTERVAL {
+        Some(duration) => Some(Timer::new(duration)),
+        None => None
+    };
     loop {
-        if !*BENCHMARK {
-            write_checkpoints().context("failed to write checkpoints")?;
+        if !*BENCHMARK && (*CP_INTERVAL).is_some() {
+            if cp_clock.as_mut().unwrap().is_ready_autoreset() {
+                write_checkpoints().context("failed to write checkpoints")?;
+            }
         }
         let cur_progress: Vec<i32> = PROGRESS_WORKERS.iter().map(|x| x.load(Ordering::Relaxed)).collect();
-        let advanced = cur_progress.iter().zip(last_progress.iter()).map(|(cur, last)| (last - cur) as f32 / MAIN_INTERVAL);
+        let advanced = cur_progress.iter().zip(last_progress.iter()).map(|(cur, last)| (last - cur) as f32 / (MAIN_INTERVAL * 1000) as f32);
         let seeds_sec = advanced.len() as f32 / advanced.sum::<f32>();
 
         last_progress = cur_progress.clone();
@@ -168,7 +179,7 @@ fn run() -> Result<()> {
                 .map_err(|err| anyhow!("failed to write metrics: {}", err))?;
         }
 
-        thread::sleep(Duration::from_millis(1000 * MAIN_INTERVAL as u64));
+        thread::sleep(Duration::from_millis(MAIN_INTERVAL));
         if work_handles.iter().all(|i| i.is_finished()) {
             log_info!("All workers have finished!");
             break;
