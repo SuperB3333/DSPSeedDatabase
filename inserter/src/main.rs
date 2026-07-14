@@ -52,7 +52,7 @@ lazy_static! {
     static ref OVERRIDE_CHECKPOINTS: bool = env_bool!("OVERRIDE_CHECKPOINTS");
     static ref BENCHMARK: bool = env_bool!("BENCHMARK");
 
-    static ref TUI: bool = supports_ansi() && stdout().is_tty() && env_bool!("NO_TUI");
+    static ref TUI: bool = supports_ansi() && stdout().is_tty() && !env_bool!("NO_TUI");
 
     static ref PG_USER: String = env_str!("PG_USER", "postgres");
     static ref PG_PASS: String = env_str!("PG_PASS", "rootpassword");
@@ -72,12 +72,14 @@ lazy_static! {
     };
     static ref CP_INTERVAL: Option<Duration> = get_cp_interval();
 
-    static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize;
+    static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize - 2;
 }
 
 #[cfg(windows)]
+#[inline]
 fn supports_ansi() -> bool { crossterm::ansi_support::supports_ansi() }
 #[cfg(not(windows))]
+#[inline]
 fn supports_ansi() -> bool { true }
 
 fn main() -> ExitCode {
@@ -85,15 +87,19 @@ fn main() -> ExitCode {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
             log_error!("{:#}", err);
+            log_error!("Exiting after fatal error");
             ExitCode::FAILURE
         }
     }
 }
 
 fn run() -> Result<()> {
-    assert!(*START_SEED < *END_SEED, "START_SEED is lower than END_SEED");
-    assert!(*WORKER_THREADS < (*END_SEED - *START_SEED), "More worker threads than seeds to process");
-    assert!(*WORKER_THREADS < MAX_WORKERS as i32, "More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher.");
+    if env_bool!("PRINT_CONFIG") {
+        misc::print_effective_config();
+        return Ok(());
+    }
+
+    misc::validate_config()?;
 
     // capture start time for performance evaluation
     let start = Instant::now();
