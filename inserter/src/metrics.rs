@@ -6,7 +6,7 @@ use crossterm::{
 };
 use super::COMMITTED_SEEDS;
 
-pub fn write_metrics(sps: f32, goal: i32, queue: i32) -> Result<(), Box<dyn std::error::Error>> {
+pub fn write_metrics(sps: f32, goal: i32, queue: i32) -> anyhow::Result<()> {
     enable_raw_mode()?;
     let mut stdout = stdout();
 

@@ -8,11 +8,12 @@ mod threads;
 
 use crate::{
     checkpoint::{load_workloads, write_checkpoints},
-    misc::{check_db_connection, get_cp_interval, Timer},
+    misc::{check_db_connection, get_env_interval, Timer},
     metrics::write_metrics,
     threads::*
 };
 use anyhow::{anyhow, Context, Result};
+use itertools::Itertools;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen},
@@ -51,6 +52,7 @@ lazy_static! {
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref OVERRIDE_CHECKPOINTS: bool = env_bool!("OVERRIDE_CHECKPOINTS");
     static ref BENCHMARK: bool = env_bool!("BENCHMARK");
+    static ref LOG_DIR: String = env_str!("LOG_DIR", "logs");
 
     static ref TUI: bool = supports_ansi() && stdout().is_tty() && !env_bool!("NO_TUI");
 
@@ -59,6 +61,10 @@ lazy_static! {
     static ref PG_NETLOC: String = env_str!("PG_NETLOC", "localhost");
     static ref PG_PORT: String = env_str!("PG_PORT", "5432");
     static ref PG_DBNAME: String = env_str!("PG_DBNAME", "dsp");
+
+    static ref CP_INTERVAL: Option<Duration> = get_env_interval("CHECKPOINT_INTERVAL");
+    static ref LOG_INTERVAL: Option<Duration> = get_env_interval("LOG_INTERVAL");
+
 
     static ref DB_STR: String = {
         format!(
@@ -70,9 +76,16 @@ lazy_static! {
             PG_DBNAME.as_str()
         )
     };
-    static ref CP_INTERVAL: Option<Duration> = get_cp_interval();
-
     static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize - 2;
+    static ref LOG_NAME: String = {
+        let num = std::fs::read_dir(&*LOG_DIR).map(|x| {
+            x.map(|x| x.unwrap().file_name().into_string().unwrap())
+            .map(|x| x.replace(".csv", "").replace("run_", ""))
+            .map(|x| x.parse::<i32>().unwrap_or(i32::MIN))
+            .max().unwrap_or(0) + 1
+        }).unwrap_or(1);
+        format!("run_{}.csv", num)
+};
 }
 
 #[cfg(windows)]
@@ -167,6 +180,10 @@ fn run() -> Result<()> {
         Some(duration) => Some(Timer::new(duration)),
         None => None
     };
+    let mut log_clock = match *LOG_INTERVAL {
+        Some(duration) => Some(Timer::new(duration)),
+        None => None
+    };
     loop {
         if !*BENCHMARK && (*CP_INTERVAL).is_some() {
             if cp_clock.as_mut().unwrap().is_ready_autoreset() {
@@ -184,7 +201,12 @@ fn run() -> Result<()> {
             write_metrics(seeds_sec, *END_SEED - *START_SEED, entry_reciever.len() as i32)
                 .map_err(|err| anyhow!("failed to write metrics: {}", err))?;
         }
-
+        if (*LOG_INTERVAL).is_some() {
+            if log_clock.as_mut().unwrap().is_ready_autoreset() {
+                misc::write_log()
+                    .context("failed to write log")?;
+            }
+        }
         thread::sleep(Duration::from_millis(MAIN_INTERVAL));
         if work_handles.iter().all(|i| i.is_finished()) {
             log_info!("All workers have finished!");
