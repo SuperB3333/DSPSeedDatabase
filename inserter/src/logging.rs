@@ -78,6 +78,7 @@ macro_rules! log_debug {
 #[macro_export]
 macro_rules! error_return {
     ($($arg:tt)*) => {
+        $crate::log_error!($($arg)*);
         return Err(anyhow::anyhow!($($arg)*));
     }
 }

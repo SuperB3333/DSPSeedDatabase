@@ -13,11 +13,9 @@ use crate::{
     threads::*
 };
 use anyhow::{anyhow, Context, Result};
-use itertools::Itertools;
 use crossbeam_channel::{bounded, Receiver, Sender};
 use crossterm::{
     terminal::{EnterAlternateScreen, LeaveAlternateScreen},
-    tty::IsTty,
     ExecutableCommand
 };
 use lazy_static::lazy_static;
@@ -28,7 +26,7 @@ use std::{
     thread,
     time::{Duration, Instant},
 };
-
+use crate::metrics::TUIMode;
 
 const MAIN_INTERVAL: u64 = 100; // in in millisecs
 const STAR_COUNT: usize = 64;
@@ -54,7 +52,7 @@ lazy_static! {
     static ref BENCHMARK: bool = env_bool!("BENCHMARK");
     static ref LOG_DIR: String = env_str!("LOG_DIR", "logs");
 
-    static ref TUI: bool = supports_ansi() && stdout().is_tty() && !env_bool!("NO_TUI");
+    static ref TUI_MODE: metrics::TUIMode = metrics::get_tui_mode();
 
     static ref PG_USER: String = env_str!("PG_USER", "postgres");
     static ref PG_PASS: String = env_str!("PG_PASS", "rootpassword");
@@ -88,12 +86,7 @@ lazy_static! {
 };
 }
 
-#[cfg(windows)]
-#[inline]
-fn supports_ansi() -> bool { crossterm::ansi_support::supports_ansi() }
-#[cfg(not(windows))]
-#[inline]
-fn supports_ansi() -> bool { true }
+
 
 fn main() -> ExitCode {
     match run() {
@@ -170,7 +163,7 @@ fn run() -> Result<()> {
 
     log_info!("Starting main thread loop");
     // Main thread takes checkpoints and displays metrics to the terminal
-    if *TUI {
+    if *TUI_MODE != TUIMode::Off {
         let mut stdout = stdout();
         stdout.execute(EnterAlternateScreen)?;
         stdout.execute(crossterm::cursor::Hide)?;
@@ -197,8 +190,12 @@ fn run() -> Result<()> {
         last_progress = cur_progress.clone();
 
 
-        if *TUI {
-            write_metrics(seeds_sec, *END_SEED - *START_SEED, entry_reciever.len() as i32)
+        if *TUI_MODE != TUIMode::Off {
+            write_metrics(
+                seeds_sec,
+                *END_SEED - *START_SEED,
+                entry_reciever.len() as i32
+            )
                 .map_err(|err| anyhow!("failed to write metrics: {}", err))?;
         }
         if (*LOG_INTERVAL).is_some() {
@@ -213,7 +210,7 @@ fn run() -> Result<()> {
             break;
         }
     }
-    if *TUI {
+    if *TUI_MODE != TUIMode::Off {
         let mut stdout = stdout();
         stdout.execute(crossterm::cursor::Show)?;
         stdout.execute(LeaveAlternateScreen)?;

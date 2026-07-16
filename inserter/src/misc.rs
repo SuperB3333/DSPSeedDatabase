@@ -8,7 +8,7 @@ pub const COPY_PLANET: &str = "COPY planets(star_id, index, orbiting, water_item
 pub const COPY_STAR: &str = "COPY stars(id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT CSV)";
 
 const INIT_SCRIPT: &str = include_str!("init.sql");
-pub const TRUTHY: [&str; 4] = ["1", "true", "yes", "enable"];
+pub const TRUTHY: [&str; 5] = ["1", "true", "yes", "enable", "on"];
 pub fn split_chunks(r: Range<i32>, chunks: i32) -> Vec<Range<i32>> {
     let total = r.end - r.start;
     let base = total / chunks;
@@ -69,9 +69,8 @@ pub fn get_env_interval(name: &str) -> Option<Duration> {
     if let Ok(num) = envvar.parse::<u64>() {
         return Some(Duration::from_millis(num));
     }
-    let cleaned = envvar.to_ascii_lowercase().replace(" ", "").replace("_", "");
 
-    match cleaned.as_str() {
+    match crate::process_option!(envvar).as_str() {
         "none" => None,
         "verylow" => Some(Duration::from_secs(60)),
         "low" => Some(Duration::from_secs(30)),
@@ -180,6 +179,10 @@ pub fn validate_config() -> anyhow::Result<()> {
     if *WORKER_THREADS < MAX_WORKERS as i32 {
         crate::error_return!("More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher.");
     }
+    
+    if *crate::TUI_MODE == crate::metrics::TUIMode::Diagnosis {
+        crate::log_warn!("Diagnosis TUI Mode is not yet implemented!");
+    }
     Ok(())
 }
 
@@ -202,3 +205,9 @@ pub fn write_log() -> anyhow::Result<()> {
     Ok(())
 }
 
+#[macro_export]
+macro_rules! process_option {
+    ($user_option:expr) => {
+        $user_option.to_ascii_lowercase().replace(" ", "").replace("_", "").replace("-", "")
+    };
+}
