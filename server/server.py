@@ -3,6 +3,7 @@ import asyncio, json, psycopg2
 from websockets import serve, server
 
 from parse_rule import parse as parse_rule
+
 from dsp_generator import generate as generate_galaxy
 
 DB_CONFIG = {

@@ -286,6 +286,7 @@ impl<'a> Planet<'a> {
         }
     }
 
+    #[inline]
     pub fn is_tidal_locked(&self) -> bool {
         self.get_rotation_period() == self.get_orbital_period()
     }
@@ -554,12 +555,12 @@ impl<'a> Planet<'a> {
             }
             let mut output: Vec<EstimatedVein> = Vec::with_capacity(14);
             let mut rand1 = DspRandom::new(self.seed);
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
             let theme_proto = self.get_theme();
             let mut vein_spots: Vec<i32> = (0..15_i32)
                 .map(|i| *theme_proto.vein_spot.get((i - 1) as usize).unwrap_or(&0))
@@ -655,7 +656,7 @@ impl<'a> Planet<'a> {
             for index3 in 1..15 {
                 let vein_spot_count = vein_spots[index3 as usize];
                 if vein_spot_count > 0 {
-                    let vein_type: VeinType = unsafe { ::std::mem::transmute(index3) };
+                    let vein_type: VeinType = unsafe { std::mem::transmute(index3) };
                     let mut vein = EstimatedVein::new();
                     vein.vein_type = vein_type;
                     vein.min_group = vein_spot_count - 1;
@@ -999,7 +1000,7 @@ impl<'a> Planet<'a> {
                 if vein_spot_count > 1 {
                     vein_spot_count += rand2.next_i32(3) - 1;
                 }
-                let vein_type: VeinType = unsafe { ::std::mem::transmute(index3) };
+                let vein_type: VeinType = unsafe { std::mem::transmute(index3) };
                 let min_sq_dist = min_vein_spacing_sq
                     * (if vein_type == VeinType::Oil {
                         100_f64
@@ -1136,7 +1137,7 @@ impl<'a> Planet<'a> {
                 .enumerate()
                 .filter(|(_, &amount)| amount > 0)
                 .map(|(i, &amount)| ActualVein {
-                    vein_type: unsafe { ::std::mem::transmute(i as i32) },
+                    vein_type: unsafe { std::mem::transmute(i as i32) },
                     amount,
                 })
                 .collect()

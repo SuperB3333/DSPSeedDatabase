@@ -203,15 +203,3 @@ pub fn create_galaxy<'a>(
 
     Galaxy { seed, stars }
 }
-
-pub fn find_stars(seed: i32, game_desc: &GameDesc, rule: &Box<dyn Rule + Send + Sync>) -> u64 {
-    let habitable_count = Cell::new(0_i32);
-    let galaxy = Galaxy {
-        seed,
-        stars: generate_stars(seed, game_desc, &habitable_count),
-    };
-
-    let evaluation = Evaluation::new(game_desc.star_count);
-    let result = rule.evaluate(&galaxy, &evaluation);
-    result
-}

@@ -321,7 +321,7 @@ impl<'a> Star<'a> {
                 SpectrType::X
             } else {
                 unsafe {
-                    ::std::mem::transmute::<i32, SpectrType>(
+                    std::mem::transmute::<i32, SpectrType>(
                         self.get_class_factor().round_ties_even() as i32,
                     )
                 }

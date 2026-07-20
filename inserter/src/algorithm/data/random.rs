@@ -82,6 +82,21 @@ impl DspRandom {
         self.seed_array[self.inext] = num;
         (num as f64) * (1.0 / (i32::MAX as f64))
     }
+    pub fn advance(&mut self) {
+        self.inext += 1;
+        if self.inext >= 56 {
+            self.inext = 1
+        }
+        self.inextp += 1;
+        if self.inextp >= 56 {
+            self.inextp = 1
+        }
+        let mut num = self.seed_array[self.inext] - self.seed_array[self.inextp];
+        if num < 0 {
+            num += i32::MAX;
+        }
+        self.seed_array[self.inext] = num;
+    }
 
     #[inline]
     pub fn next_f64(&mut self) -> f64 {

@@ -3,7 +3,7 @@ use crate::algorithm::data::enums::{PlanetType, ORES};
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::worldgen::galaxy_gen::create_galaxy;
 
-pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::Error>> {
+pub fn gen_formatted(seed: i32) -> anyhow::Result<(String, String)> {
     let game_desc: GameDesc = GameDesc {
         star_count: crate::STAR_COUNT,
         resource_multiplier: crate::REC_MULTIPLIER,
@@ -83,7 +83,7 @@ pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::
                                      planet.get_theme().temperature,
                                      planet.get_theme().id,
                                      gas_h, gas_d, gas_i,
-                                     planet.get_rotation_period() == planet.get_orbital_period()
+                                     planet.is_tidal_locked(),
             ).as_str());
 
             let veins = planet.get_actual_veins();
