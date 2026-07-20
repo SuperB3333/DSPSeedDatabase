@@ -51,7 +51,7 @@ def _build_metrics():
     metrics = {}
     for vein in veins:
         metrics[f"ore_{vein}"] = (
-            f"SUM(GREATEST(p.estimate_{vein}, 0))",
+            f"SUM(COALESCE(p.estimate_{vein}))",
             f"Total estimated {vein} ore across the seed's planets "
             "(sentinel-guarded).",
         )
