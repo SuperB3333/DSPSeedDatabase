@@ -1,3 +1,4 @@
+#![allow(dead_code)]
 use super::galaxy::Galaxy;
 use serde::{Deserialize, Serialize};
 

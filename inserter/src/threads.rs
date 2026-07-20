@@ -6,7 +6,7 @@ use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use postgres::{Client, NoTls};
 use anyhow::Result;
 use crate::generate_csv::gen_formatted;
-use crate::{log_info, COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS, REC_MULTIPLIER, STAR_COUNT};
+use crate::{log_info, COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS};
 use crate::misc::{COPY_PLANET, COPY_STAR};
 
 pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) -> Result<()> {

@@ -5,46 +5,57 @@ use std::ops::{Add, AddAssign, Div, DivAssign, Mul, MulAssign, Neg, Sub, SubAssi
 pub struct VectorF3(pub f32, pub f32, pub f32);
 
 impl VectorF3 {
+    #[inline]
     pub fn new(x: f32, y: f32, z: f32) -> Self {
         Self(x, y, z)
     }
 
+    #[inline]
     pub const fn zero() -> Self {
         Self(0.0, 0.0, 0.0)
     }
 
+    #[inline]
     pub const fn up() -> Self {
         Self(0.0, 1.0, 0.0)
     }
 
+    #[inline]
     pub const fn forward() -> Self {
         Self(0.0, 0.0, 1.0)
     }
 
+    #[inline]
     pub const fn back() -> Self {
         Self(0.0, 0.0, -1.0)
     }
 
+    #[inline]
     pub const fn right() -> Self {
         Self(1.0, 0.0, 0.0)
     }
 
+    #[inline]
     pub const fn left() -> Self {
         Self(-1.0, 0.0, 0.0)
     }
 
+    #[inline]
     pub const fn down() -> Self {
         Self(0.0, -1.0, 0.0)
     }
 
+    #[inline]
     pub fn magnitude_sq(&self) -> f32 {
         self.0 * self.0 + self.1 * self.1 + self.2 * self.2
     }
 
+    #[inline]
     pub fn magnitude(&self) -> f32 {
         self.magnitude_sq().sqrt()
     }
 
+    #[inline]
     pub fn normalize(&mut self) -> &mut Self {
         let mag = self.magnitude();
         if mag > 1e-10 {
@@ -55,6 +66,7 @@ impl VectorF3 {
         self
     }
 
+    #[inline]
     pub fn normalized(&self) -> Self {
         let mag = self.magnitude();
         if mag > 1e-10 {
@@ -64,6 +76,7 @@ impl VectorF3 {
         }
     }
 
+    #[inline]
     pub fn distance_sq_from(&self, pt: &Self) -> f32 {
         let dx = pt.0 - self.0;
         let dy = pt.1 - self.1;
@@ -71,6 +84,7 @@ impl VectorF3 {
         dx * dx + dy * dy + dz * dz
     }
 
+    #[inline]
     pub fn cross(a: &Self, b: &Self) -> Self {
         Self(
             a.1 * b.2 - a.2 * b.1,
@@ -79,22 +93,25 @@ impl VectorF3 {
         )
     }
 
+    #[inline]
     pub fn dot(a: &Self, b: &Self) -> f32 {
         a.0 * b.0 + a.1 * b.1 + a.2 * b.2
     }
 
+    #[inline]
     pub fn slerp(lhs: &VectorF3, rhs: &VectorF3, percent: f32) -> VectorF3 {
         let dot = VectorF3::dot(lhs, rhs).clamp(-1.0, 1.0);
         let theta = dot.acos() * percent;
         let mut relative_vec = rhs - &(lhs * dot);
         relative_vec.normalize();
-        &(lhs * theta.cos()) + &(&relative_vec * theta.sin())
+        (lhs * theta.cos()) + (relative_vec * theta.sin())
     }
 }
 
 impl Add for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn add(self, rhs: VectorF3) -> VectorF3 {
         VectorF3(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
     }
@@ -103,6 +120,7 @@ impl Add for VectorF3 {
 impl Add<&VectorF3> for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn add(self, rhs: &VectorF3) -> VectorF3 {
         VectorF3(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
     }
@@ -111,12 +129,14 @@ impl Add<&VectorF3> for VectorF3 {
 impl Add<&VectorF3> for &VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn add(self, rhs: &VectorF3) -> VectorF3 {
         VectorF3(self.0 + rhs.0, self.1 + rhs.1, self.2 + rhs.2)
     }
 }
 
 impl AddAssign for VectorF3 {
+    #[inline]
     fn add_assign(&mut self, rhs: VectorF3) {
         self.0 += rhs.0;
         self.1 += rhs.1;
@@ -125,6 +145,7 @@ impl AddAssign for VectorF3 {
 }
 
 impl AddAssign<&VectorF3> for VectorF3 {
+    #[inline]
     fn add_assign(&mut self, rhs: &VectorF3) {
         self.0 += rhs.0;
         self.1 += rhs.1;
@@ -135,6 +156,7 @@ impl AddAssign<&VectorF3> for VectorF3 {
 impl Sub for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn sub(self, rhs: VectorF3) -> VectorF3 {
         VectorF3(self.0 - rhs.0, self.1 - rhs.1, self.2 - rhs.2)
     }
@@ -143,6 +165,7 @@ impl Sub for VectorF3 {
 impl Sub<&VectorF3> for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn sub(self, rhs: &VectorF3) -> VectorF3 {
         VectorF3(self.0 - rhs.0, self.1 - rhs.1, self.2 - rhs.2)
     }
@@ -151,12 +174,14 @@ impl Sub<&VectorF3> for VectorF3 {
 impl Sub<&VectorF3> for &VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn sub(self, rhs: &VectorF3) -> VectorF3 {
         VectorF3(self.0 - rhs.0, self.1 - rhs.1, self.2 - rhs.2)
     }
 }
 
 impl SubAssign for VectorF3 {
+    #[inline]
     fn sub_assign(&mut self, rhs: VectorF3) {
         self.0 -= rhs.0;
         self.1 -= rhs.1;
@@ -165,6 +190,7 @@ impl SubAssign for VectorF3 {
 }
 
 impl SubAssign<&VectorF3> for VectorF3 {
+    #[inline]
     fn sub_assign(&mut self, rhs: &VectorF3) {
         self.0 -= rhs.0;
         self.1 -= rhs.1;
@@ -175,6 +201,7 @@ impl SubAssign<&VectorF3> for VectorF3 {
 impl Mul<f32> for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn mul(self, rhs: f32) -> VectorF3 {
         VectorF3(self.0 * rhs, self.1 * rhs, self.2 * rhs)
     }
@@ -183,12 +210,14 @@ impl Mul<f32> for VectorF3 {
 impl Mul<f32> for &VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn mul(self, rhs: f32) -> VectorF3 {
         VectorF3(self.0 * rhs, self.1 * rhs, self.2 * rhs)
     }
 }
 
 impl MulAssign<f32> for VectorF3 {
+    #[inline]
     fn mul_assign(&mut self, rhs: f32) {
         self.0 *= rhs;
         self.1 *= rhs;
@@ -197,6 +226,7 @@ impl MulAssign<f32> for VectorF3 {
 }
 
 impl DivAssign<f32> for VectorF3 {
+    #[inline]
     fn div_assign(&mut self, rhs: f32) {
         self.0 /= rhs;
         self.1 /= rhs;
@@ -207,6 +237,7 @@ impl DivAssign<f32> for VectorF3 {
 impl Div<f32> for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn div(self, rhs: f32) -> VectorF3 {
         VectorF3(self.0 / rhs, self.1 / rhs, self.2 / rhs)
     }
@@ -215,6 +246,7 @@ impl Div<f32> for VectorF3 {
 impl Div<f32> for &VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn div(self, rhs: f32) -> VectorF3 {
         VectorF3(self.0 / rhs, self.1 / rhs, self.2 / rhs)
     }
@@ -223,6 +255,7 @@ impl Div<f32> for &VectorF3 {
 impl Neg for VectorF3 {
     type Output = VectorF3;
 
+    #[inline]
     fn neg(self) -> VectorF3 {
         VectorF3(-self.0, -self.1, -self.2)
     }
