@@ -11,7 +11,7 @@ use crate::misc::{COPY_PLANET, COPY_STAR};
 
 pub fn worker_thread(seeds: Range<i32>, send: Sender<(String, String)>, id: usize) -> Result<()> {
     for seed in seeds {
-        let entry = gen_formatted(seed, STAR_COUNT, REC_MULTIPLIER).expect("gen_formatted failed");
+        let entry = gen_formatted(seed).expect("gen_formatted failed");
         send.send(entry)?;
         PROGRESS_WORKERS[id].fetch_add(1, Relaxed);
 

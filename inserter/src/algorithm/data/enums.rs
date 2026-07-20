@@ -1,5 +1,6 @@
 use serde::{Deserialize, Serialize};
 
+#[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Deserialize, Serialize)]
 pub enum StarType {
@@ -15,6 +16,7 @@ impl Default for StarType {
         Self::MainSeqStar
     }
 }
+
 #[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Deserialize, Serialize)]
@@ -34,7 +36,7 @@ pub enum SpectrType {
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy, Deserialize, Serialize)]
 pub enum PlanetType {
     None,
-    Vocano,
+    Volcano,
     Ocean,
     Desert,
     Ice,
@@ -93,18 +95,18 @@ impl Default for VeinType {
 
 impl VeinType {
     pub fn is_rare(&self) -> bool {
-        match self {
+        matches!(
+            self,
             VeinType::Fireice
-            | VeinType::Diamond
-            | VeinType::Fractal
-            | VeinType::Crysrub
-            | VeinType::Grat
-            | VeinType::Bamboo => true,
-            _ => false,
-        }
+                | VeinType::Diamond
+                | VeinType::Fractal
+                | VeinType::Crysrub
+                | VeinType::Grat
+                | VeinType::Bamboo
+                | VeinType::Mag
+        )
     }
 }
-
 pub const ORES: [VeinType; 16] = [
     VeinType::None,
     VeinType::Iron,
