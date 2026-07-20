@@ -287,7 +287,7 @@ impl<'a> Planet<'a> {
         }
     }
 
-    #[allow(dead_code)]
+    #[inline]
     pub fn is_tidal_locked(&self) -> bool {
         self.get_rotation_period() == self.get_orbital_period()
     }
@@ -538,12 +538,12 @@ impl<'a> Planet<'a> {
             }
             let mut output: Vec<EstimatedVein> = Vec::with_capacity(14);
             let mut rand1 = DspRandom::new(self.seed);
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
             let theme_proto = self.get_theme();
             let mut vein_spots: Vec<i32> = (0..15_i32)
                 .map(|i| *theme_proto.vein_spot.get((i - 1) as usize).unwrap_or(&0))

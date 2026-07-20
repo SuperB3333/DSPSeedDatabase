@@ -204,7 +204,6 @@ pub fn create_galaxy<'a>(
     Galaxy { seed, stars }
 }
 
-#[allow(dead_code)]
 pub fn find_stars(seed: i32, game_desc: &GameDesc, rule: &Box<dyn Rule + Send + Sync>) -> u64 {
     let habitable_count = Cell::new(0_i32);
     let galaxy = Galaxy {
