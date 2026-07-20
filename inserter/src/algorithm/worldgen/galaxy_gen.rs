@@ -3,33 +3,29 @@ use crate::algorithm::data::enums::{SpectrType, StarType};
 use crate::algorithm::data::galaxy::Galaxy;
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::data::random::DspRandom;
+use crate::algorithm::data::rule::{Evaluation, Rule};
 use crate::algorithm::data::star::Star;
 use crate::algorithm::data::star_planets::StarWithPlanets;
 use crate::algorithm::data::vector3::Vector3;
+use std::cell::Cell;
 use std::rc::Rc;
 
-fn generate_temp_poses(
-    seed: i32,
-    target_count: usize,
-    iter_count: usize,
-    min_dist: f64,
-    min_step_len: f64,
-    max_step_len: f64,
-    flatten: f64,
-) -> Vec<Vector3> {
-    let mut tmp_poses: Vec<Vector3> = vec![];
-    let actual_iter_count = iter_count.clamp(1, 16);
-    random_poses(
-        &mut tmp_poses,
-        seed,
-        target_count * actual_iter_count,
-        min_dist,
-        max_step_len - min_step_len,
-        flatten,
-    );
+const ITER_COUNT: usize = 4;
+const MIN_DIST: f64 = 2.0;
+const MIN_DIST_SQ: f64 = MIN_DIST * MIN_DIST;
+const STEP_DIFF: f64 = 3.5 - 2.3;
+const FLATTEN: f64 = 0.18;
+const MIN_DRUNK_NUM: i32 = 6;
+const MAX_DRUNK_NUM: i32 = 8;
+const DRUNK_NUM_RANGE: f64 = (MAX_DRUNK_NUM - MIN_DRUNK_NUM) as f64;
+
+fn generate_temp_poses(seed: i32, target_count: usize) -> Vec<Vector3> {
+    let max_count = target_count * ITER_COUNT;
+    let mut tmp_poses = Vec::with_capacity(max_count);
+    random_poses(&mut tmp_poses, seed, max_count);
 
     for index in (0..tmp_poses.len()).rev() {
-        if index % iter_count != 0 {
+        if index % ITER_COUNT != 0 {
             tmp_poses.remove(index);
         }
         if tmp_poses.len() <= target_count {
@@ -40,35 +36,25 @@ fn generate_temp_poses(
     tmp_poses
 }
 
-fn random_poses(
-    tmp_poses: &mut Vec<Vector3>,
-    seed: i32,
-    max_count: usize,
-    min_dist: f64,
-    step_diff: f64,
-    flatten: f64,
-) {
+fn random_poses(tmp_poses: &mut Vec<Vector3>, seed: i32, max_count: usize) {
     let mut rand = DspRandom::new(seed);
-    let num1 = rand.next_f64();
-    let mut tmp_drunk: Vec<Vector3> = vec![];
+    let drunk_walk_count_rand = rand.next_f64();
+    let mut tmp_drunk: Vec<Vector3> = Vec::with_capacity(max_count);
     tmp_poses.push(Vector3::zero());
-    let num2 = 6;
-    let num3 = 8;
-    let num4 = (num3 - num2) as f64;
-    let num5 = (num1 * num4 + (num2 as f64)) as i32;
-    for _ in 0..num5 {
+    let drunk_num = (drunk_walk_count_rand * DRUNK_NUM_RANGE + (MIN_DRUNK_NUM as f64)) as i32;
+    for _ in 0..drunk_num {
         for _ in 0..256 {
-            let num7 = rand.next_f64() * 2.0 - 1.0;
-            let num8 = (rand.next_f64() * 2.0 - 1.0) * flatten;
-            let num9 = rand.next_f64() * 2.0 - 1.0;
-            let num10 = rand.next_f64();
-            let d = num7 * num7 + num8 * num8 + num9 * num9;
-            if d <= 1.0 && d >= 1e-8 {
-                let num11 = d.sqrt();
-                let num12 = (num10 * step_diff + min_dist) / num11;
-                let pt = Vector3(num7 * num12, num8 * num12, num9 * num12);
-                if !check_collision(tmp_poses, &pt, min_dist) {
-                    tmp_drunk.push(pt.clone());
+            let u = rand.next_f64() * 2.0 - 1.0;
+            let w = (rand.next_f64() * 2.0 - 1.0) * FLATTEN;
+            let v = rand.next_f64() * 2.0 - 1.0;
+            let first_step_len_rand = rand.next_f64();
+            let squared_length = u * u + w * w + v * v;
+            if squared_length <= 1.0 && squared_length >= 1e-8 {
+                let distance = squared_length.sqrt();
+                let step_len_mult = (first_step_len_rand * STEP_DIFF + MIN_DIST) / distance;
+                let pt = Vector3(u * step_len_mult, w * step_len_mult, v * step_len_mult);
+                if !check_collision(tmp_poses, &pt) {
+                    tmp_drunk.push(pt);
                     tmp_poses.push(pt);
                     if tmp_poses.len() >= max_count {
                         return;
@@ -82,21 +68,21 @@ fn random_poses(
         for pt in tmp_drunk.iter_mut() {
             if rand.next_f64() <= 0.7 {
                 for _ in 0..256 {
-                    let num15 = rand.next_f64() * 2.0 - 1.0;
-                    let num16 = (rand.next_f64() * 2.0 - 1.0) * flatten;
-                    let num17 = rand.next_f64() * 2.0 - 1.0;
-                    let num18 = rand.next_f64();
-                    let d = num15 * num15 + num16 * num16 + num17 * num17;
-                    if d <= 1.0 && d >= 1e-8 {
-                        let num19 = d.sqrt();
-                        let num20 = (num18 * step_diff + min_dist) / num19;
+                    let u = rand.next_f64() * 2.0 - 1.0;
+                    let w = (rand.next_f64() * 2.0 - 1.0) * FLATTEN;
+                    let v = rand.next_f64() * 2.0 - 1.0;
+                    let step_len_rand = rand.next_f64();
+                    let squared_length2 = u * u + w * w + v * v;
+                    if squared_length2 <= 1.0 && squared_length2 >= 1e-8 {
+                        let distance = squared_length2.sqrt();
+                        let step_len_mult = (step_len_rand * STEP_DIFF + MIN_DIST) / distance;
                         let new_pt = Vector3(
-                            pt.0 + num15 * num20,
-                            pt.1 + num16 * num20,
-                            pt.2 + num17 * num20,
+                            pt.0 + u * step_len_mult,
+                            pt.1 + w * step_len_mult,
+                            pt.2 + v * step_len_mult,
                         );
-                        if !check_collision(tmp_poses, &new_pt, min_dist) {
-                            *pt = new_pt.clone();
+                        if !check_collision(tmp_poses, &new_pt) {
+                            *pt = new_pt;
                             tmp_poses.push(new_pt);
                             if tmp_poses.len() >= max_count {
                                 return;
@@ -110,100 +96,122 @@ fn random_poses(
     }
 }
 
-fn check_collision(tmp_poses: &Vec<Vector3>, pt: &Vector3, min_dist: f64) -> bool {
-    let min_dist_sq = min_dist * min_dist;
+fn check_collision(tmp_poses: &Vec<Vector3>, pt: &Vector3) -> bool {
     tmp_poses
         .iter()
-        .any(|pt1| pt1.distance_sq_from(pt) < min_dist_sq)
+        .any(|existing_point| existing_point.distance_sq_from(pt) < MIN_DIST_SQ)
 }
 
-fn generate_stars(game_desc: &GameDesc) -> Vec<StarWithPlanets> {
-    let galaxy_seed = game_desc.seed;
-
-    let mut rand = DspRandom::new(galaxy_seed);
-    let tmp_poses = generate_temp_poses(
-        rand.next_seed(),
-        game_desc.star_count,
-        4,
-        2.0,
-        2.3,
-        3.5,
-        0.18,
-    );
+fn generate_stars<'a>(
+    seed: i32,
+    game_desc: &'a GameDesc,
+    habitable_count: &'a Cell<i32>,
+) -> Vec<StarWithPlanets<'a>> {
+    let mut rand = DspRandom::new(seed);
+    let tmp_poses = generate_temp_poses(rand.next_seed(), game_desc.star_count);
     let star_count = tmp_poses.len();
 
-    let num1 = rand.next_f32();
-    let num2 = rand.next_f32();
-    let num3 = rand.next_f32();
-    let num4 = rand.next_f32();
-    let num5 = (0.01 * (star_count as f64) + (num1 as f64) * 0.3).ceil() as usize;
-    let num6 = (0.01 * (star_count as f64) + (num2 as f64) * 0.3).ceil() as usize;
-    let num7 = (0.016 * (star_count as f64) + (num3 as f64) * 0.4).ceil() as usize;
-    let num8 = (0.013 * (star_count as f64) + (num4 as f64) * 1.3).ceil() as usize;
-    let num9 = star_count - num5;
-    let num10 = num9 - num6;
-    let num11 = num10 - num7;
-    let num12 = (num11 - 1) / num8;
-    let num13 = num12 / 2;
+    let black_hole_count_rand = rand.next_f32();
+    let neutron_star_count_rand = rand.next_f32();
+    let white_dwarf_count_rand = rand.next_f32();
+    let giant_star_count_rand = rand.next_f32();
+    let black_hole_num = ((0.01 * (star_count as f64) + (black_hole_count_rand as f64) * 0.3)
+        as f32)
+        .ceil() as usize;
+    let neutro_star_num = ((0.01 * (star_count as f64) + (neutron_star_count_rand as f64) * 0.3)
+        as f32)
+        .ceil() as usize;
+    let white_dwarf_num = ((0.016 * (star_count as f64) + (white_dwarf_count_rand as f64) * 0.4)
+        as f32)
+        .ceil() as usize;
+    let giant_star_num = ((0.013 * (star_count as f64) + (giant_star_count_rand as f64) * 1.4)
+        as f32)
+        .ceil() as usize;
+    let black_hole_start = star_count - black_hole_num;
+    let neutron_star_start = black_hole_start - neutro_star_num;
+    let white_dwarf_start = neutron_star_start - white_dwarf_num;
+    let giant_group_num = (white_dwarf_start - 1) / giant_star_num;
+    let giant_offset = giant_group_num / 2;
 
-    let mut stars: Vec<StarWithPlanets> = vec![];
+    let mut stars: Vec<StarWithPlanets> = Vec::with_capacity(star_count);
 
     for (index, position) in tmp_poses.into_iter().enumerate() {
         let seed = rand.next_seed();
         if index == 0 {
-            stars.push(StarWithPlanets::new(Rc::new(Star::new(
+            stars.push(StarWithPlanets::new(
+                Rc::new(Star::new(
+                    game_desc,
+                    0,
+                    seed,
+                    Vector3::zero(),
+                    StarType::MainSeqStar,
+                    &SpectrType::X,
+                )),
                 game_desc,
-                0,
-                seed,
-                Vector3::zero(),
-                StarType::MainSeqStar,
-                &SpectrType::X,
-            ))));
+                habitable_count,
+            ));
         } else {
             let need_spectr = if index == 3 {
                 SpectrType::M
-            } else if index == num11 - 1 {
+            } else if index == white_dwarf_start - 1 {
                 SpectrType::O
             } else {
                 SpectrType::X
             };
-            let need_type = if index % num12 == num13 {
-                StarType::GiantStar
-            } else if index >= num9 {
+            let need_type = if index >= black_hole_start {
                 StarType::BlackHole
-            } else if index >= num10 {
+            } else if index >= neutron_star_start {
                 StarType::NeutronStar
-            } else if index >= num11 {
+            } else if index >= white_dwarf_start {
                 StarType::WhiteDwarf
+            } else if index % giant_group_num == giant_offset {
+                StarType::GiantStar
             } else {
                 StarType::MainSeqStar
             };
-            stars.push(StarWithPlanets::new(Rc::new(Star::new(
+            stars.push(StarWithPlanets::new(
+                Rc::new(Star::new(
+                    game_desc,
+                    index,
+                    seed,
+                    position,
+                    need_type,
+                    &need_spectr,
+                )),
                 game_desc,
-                index,
-                seed,
-                position,
-                need_type,
-                &need_spectr,
-            ))));
+                habitable_count,
+            ));
         }
     }
     stars
 }
 
-pub fn create_galaxy(game_desc: &GameDesc) -> Galaxy {
-    let mut stars = generate_stars(game_desc);
-    let mut names: Vec<&str> = vec![];
+pub fn create_galaxy<'a>(
+    seed: i32,
+    game_desc: &'a GameDesc,
+    habitable_count: &'a Cell<i32>,
+) -> Galaxy<'a> {
+    let mut stars = generate_stars(seed, game_desc, habitable_count);
+    let mut names: Vec<&str> = Vec::with_capacity(game_desc.star_count);
 
     for sp in stars.iter_mut() {
         let name = random_name(sp.star.name_seed, &sp.star, names.iter());
         sp.name = name;
-        sp.load_planets();
         names.push(&sp.name);
+        sp.load_planets();
     }
 
-    Galaxy {
-        seed: game_desc.seed,
-        stars,
-    }
+    Galaxy { seed, stars }
+}
+
+pub fn find_stars(seed: i32, game_desc: &GameDesc, rule: &Box<dyn Rule + Send + Sync>) -> u64 {
+    let habitable_count = Cell::new(0_i32);
+    let galaxy = Galaxy {
+        seed,
+        stars: generate_stars(seed, game_desc, &habitable_count),
+    };
+
+    let evaluation = Evaluation::new(game_desc.star_count);
+    let result = rule.evaluate(&galaxy, &evaluation);
+    result
 }
