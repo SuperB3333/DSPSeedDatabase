@@ -25,27 +25,25 @@ impl DspRandom {
             num1 = seed_array[index2]
         }
 
-        let ptr = seed_array.as_mut_ptr();
-
-        let (chunk1_lhs, chunk1_rhs, chunk2_lhs, chunk2_rhs) = unsafe {
-            (
-                &mut *ptr.add(1).cast::<[i32; 24]>(),
-                &*ptr.add(32).cast::<[i32; 24]>(),
-                &mut *ptr.add(25).cast::<[i32; 31]>(),
-                &*ptr.add(1).cast::<[i32; 31]>(),
-            )
-        };
-
-        let update = |(lhs, rhs): (&mut i32, &i32)| {
-            *lhs = lhs.wrapping_sub(*rhs);
-            if lhs.is_negative() {
-                *lhs += i32::MAX;
-            }
-        };
-
         for _ in 1..5 {
-            chunk1_lhs.iter_mut().zip(chunk1_rhs).for_each(update);
-            chunk2_lhs.iter_mut().zip(chunk2_rhs).for_each(update);
+            for i in 0..24 {
+                let lhs = seed_array[1 + i];
+                let rhs = seed_array[32 + i];
+                let mut val = lhs.wrapping_sub(rhs);
+                if val < 0 {
+                    val += i32::MAX;
+                }
+                seed_array[1 + i] = val;
+            }
+            for i in 0..31 {
+                let lhs = seed_array[25 + i];
+                let rhs = seed_array[1 + i];
+                let mut val = lhs.wrapping_sub(rhs);
+                if val < 0 {
+                    val += i32::MAX;
+                }
+                seed_array[25 + i] = val;
+            }
         }
 
         Self {

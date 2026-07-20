@@ -30,10 +30,11 @@ pub struct StarWithPlanets<'a> {
     planets: UnsafeCell<Vec<Planet<'a>>>,
 
     #[serde(skip)]
-    safe: UnsafeCell<bool>,
+    safe: Cell<bool>,
     #[serde(skip)]
     avg_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
     #[serde(skip)]
+    #[allow(dead_code)]
     actual_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
     #[serde(skip)]
     game_desc: &'a GameDesc,
@@ -50,7 +51,7 @@ impl<'a> StarWithPlanets<'a> {
         Self {
             star,
             planets: UnsafeCell::new(Vec::with_capacity(6)),
-            safe: UnsafeCell::new(false),
+            safe: Cell::new(false),
             avg_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
             actual_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
             name: Default::default(),
@@ -60,13 +61,11 @@ impl<'a> StarWithPlanets<'a> {
     }
 
     pub fn is_safe(&self) -> bool {
-        unsafe { *self.safe.get() }
+        self.safe.get()
     }
 
     pub fn mark_safe(&self) {
-        unsafe {
-            *self.safe.get() = true;
-        }
+        self.safe.set(true);
     }
 
     pub fn load_planets(&self) {
@@ -123,6 +122,7 @@ impl<'a> StarWithPlanets<'a> {
         count
     }
 
+    #[allow(dead_code)]
     pub fn get_actual_vein(&self, vein_type: &VeinType) -> f32 {
         if vein_type == &VeinType::Mag
             && self.star.star_type != StarType::BlackHole
