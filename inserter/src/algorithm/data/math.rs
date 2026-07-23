@@ -1,22 +1,10 @@
 /// Mathematical utility functions ported from Maths.cs
 /// These are used by PlanetAlgorithm implementations.
 
-/// Clamp a value between min and max (inclusive).
-#[inline]
-pub fn clamp<T: PartialOrd>(value: T, min: T, max: T) -> T {
-    if value < min {
-        min
-    } else if value > max {
-        max
-    } else {
-        value
-    }
-}
-
 /// Clamp a value between 0.0 and 1.0.
 #[inline]
 pub fn clamp01(value: f64) -> f64 {
-    clamp(value, 0.0, 1.0)
+    value.clamp(0.0, 1.0)
 }
 
 /// C# Levelize: smoothstep-based levelize
