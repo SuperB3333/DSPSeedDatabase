@@ -2,41 +2,26 @@ use crate::algorithm::data::vector2::Vector2;
 
 use super::enums::{PlanetType, ThemeDistribute, VeinType, OceanType};
 use once_cell::sync::Lazy;
-use serde::Serialize;
 use super::planet_algorithms::PlanetAlgorithms;
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct ThemeProto {
     pub id: i32,
     pub name: &'static str,
     pub wind: f32,
     pub ocean_type: OceanType,
-    #[serde(skip)]
     pub distribute: ThemeDistribute,
-    #[serde(skip)]
     pub temperature: f32,
-    #[serde(skip)]
     pub planet_type: PlanetType,
-    #[serde(skip)]
     pub vein_spot: Vec<i32>,
-    #[serde(skip)]
     pub vein_count: Vec<f32>,
-    #[serde(skip)]
     pub vein_opacity: Vec<f32>,
-    #[serde(skip)]
     pub rare_veins: Vec<VeinType>,
-    #[serde(skip)]
     pub rare_settings: Vec<f32>,
-    #[serde(skip)]
     pub gas_items: Vec<i32>,
-    #[serde(skip)]
     pub gas_speeds: Vec<f32>,
-    #[serde(skip)]
     pub algo: PlanetAlgorithms,
-    #[serde(skip)]
     pub mod_x: Vector2,
-    #[serde(skip)]
     pub mod_y: Vector2,
 }
 

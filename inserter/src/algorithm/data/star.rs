@@ -2,7 +2,6 @@ use super::enums::{SpectrType, StarType};
 use super::game_desc::GameDesc;
 use super::random::DspRandom;
 use super::vector3::Vector3;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{OnceCell, RefCell};
 use std::convert::TryFrom;
 use std::f64::consts::PI;
@@ -588,30 +587,6 @@ impl<'a> Star<'a> {
                 initial_hive_count
             }
         })
-    }
-}
-
-impl Serialize for Star<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("Star", 14)?;
-        state.serialize_field("index", &self.index)?;
-        state.serialize_field("position", &self.position)?;
-        state.serialize_field("mass", &self.get_mass())?;
-        state.serialize_field("lifetime", &self.get_lifetime())?;
-        state.serialize_field("age", &self.get_age())?;
-        state.serialize_field("temperature", &self.get_temperature())?;
-        state.serialize_field("type", &self.star_type)?;
-        state.serialize_field("spectr", &self.get_spectr())?;
-        state.serialize_field("luminosity", &self.get_luminosity())?;
-        state.serialize_field("radius", &self.get_radius())?;
-        state.serialize_field("dysonRadius", &self.get_dyson_radius())?;
-        state.serialize_field("initialHiveCount", &self.get_initial_hive_count())?;
-        state.serialize_field("maxHiveCount", &self.get_max_hive_count())?;
-        state.serialize_field("color", &self.get_color())?;
-        state.end()
     }
 }
 

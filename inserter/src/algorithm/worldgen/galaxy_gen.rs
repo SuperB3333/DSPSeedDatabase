@@ -1,9 +1,6 @@
-use super::name_gen::random_name;
 use crate::algorithm::data::enums::{SpectrType, StarType};
-use crate::algorithm::data::galaxy::Galaxy;
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::data::random::DspRandom;
-use crate::algorithm::data::rule::{Evaluation, Rule};
 use crate::algorithm::data::star::Star;
 use crate::algorithm::data::star_planets::StarWithPlanets;
 use crate::algorithm::data::vector3::Vector3;
@@ -102,7 +99,7 @@ fn check_collision(tmp_poses: &Vec<Vector3>, pt: &Vector3) -> bool {
         .any(|existing_point| existing_point.distance_sq_from(pt) < MIN_DIST_SQ)
 }
 
-fn generate_stars<'a>(
+pub fn generate_stars<'a>(
     seed: i32,
     game_desc: &'a GameDesc,
     habitable_count: &'a Cell<i32>,
@@ -202,16 +199,4 @@ pub fn create_galaxy<'a>(
     }
 
     Galaxy { seed, stars }
-}
-
-pub fn find_stars(seed: i32, game_desc: &GameDesc, rule: &Box<dyn Rule + Send + Sync>) -> u64 {
-    let habitable_count = Cell::new(0_i32);
-    let galaxy = Galaxy {
-        seed,
-        stars: generate_stars(seed, game_desc, &habitable_count),
-    };
-
-    let evaluation = Evaluation::new(game_desc.star_count);
-    let result = rule.evaluate(&galaxy, &evaluation);
-    result
 }
