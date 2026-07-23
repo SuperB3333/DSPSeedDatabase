@@ -656,7 +656,7 @@ impl<'a> Planet<'a> {
                 let vein_spot_count = vein_spots[index3 as usize];
                 if vein_spot_count > 0 {
                     let vein_type: VeinType = unsafe { std::mem::transmute(index3) };
-                    let mut vein = EstimatedVein::new();
+                    let mut vein = EstimatedVein::default();
                     vein.vein_type = vein_type;
                     vein.min_group = vein_spot_count - 1;
                     vein.max_group = vein_spot_count + 1;
