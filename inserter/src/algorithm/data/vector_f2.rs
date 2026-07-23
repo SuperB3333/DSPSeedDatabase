@@ -13,22 +13,6 @@ impl VectorF2 {
         Self(0.0, 0.0)
     }
 
-    pub fn up() -> Self {
-        Self(0.0, 1.0)
-    }
-
-    pub fn down() -> Self {
-        Self(0.0, -1.0)
-    }
-
-    pub fn right() -> Self {
-        Self(1.0, 0.0)
-    }
-
-    pub fn left() -> Self {
-        Self(-1.0, 0.0)
-    }
-
     pub fn magnitude_sq(&self) -> f32 {
         self.0 * self.0 + self.1 * self.1
     }
@@ -45,19 +29,6 @@ impl VectorF2 {
             *self = Self::zero();
         }
         self
-    }
-
-    pub fn normalized(&self) -> Self {
-        let mag = self.magnitude();
-        if mag > 1e-10 {
-            *self / mag
-        } else {
-            Self::zero()
-        }
-    }
-
-    pub fn dot(a: &Self, b: &Self) -> f32 {
-        a.0 * b.0 + a.1 * b.1
     }
 
     pub fn distance_sq_from(&self, pt: &Self) -> f32 {
@@ -194,11 +165,5 @@ impl Neg for VectorF2 {
 
     fn neg(self) -> VectorF2 {
         VectorF2(-self.0, -self.1)
-    }
-}
-
-impl std::fmt::Display for VectorF2 {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "({}, {})", self.0, self.1)
     }
 }

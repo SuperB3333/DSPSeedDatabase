@@ -2,9 +2,6 @@
 pub struct GameDesc {
     pub star_count: usize,
     pub resource_multiplier: f32,
-    pub hive_initial_colonize: f64,
-    pub hive_max_density: f64,
-    pub use_actual_veins: bool,
 }
 
 impl GameDesc {
@@ -30,17 +27,6 @@ impl GameDesc {
             0.8
         } else {
             1.0
-        }
-    }
-}
-impl Default for GameDesc {
-    fn default() -> Self {
-        Self {
-            star_count: 64,
-            resource_multiplier: 1.0,
-            hive_initial_colonize: 1.0,
-            hive_max_density: 1.0,
-            use_actual_veins: false
         }
     }
 }

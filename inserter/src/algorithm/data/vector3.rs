@@ -13,10 +13,6 @@ impl Vector3 {
         dx * dx + dy * dy + dz * dz
     }
 
-    pub fn distance_from(&self, pt: &Self) -> f64 {
-        self.distance_sq_from(pt).sqrt()
-    }
-
     pub fn magnitude_sq(&self) -> f64 {
         self.0 * self.0 + self.1 * self.1 + self.2 * self.2
     }
@@ -35,17 +31,6 @@ impl Vector3 {
         return self;
     }
 
-    pub fn dot(&self, rhs: &Vector3) -> f64 {
-        return self.0 * rhs.0 + self.1 * rhs.1 + self.2 * rhs.2;
-    }
-
-    pub fn slerp(lhs: &Vector3, rhs: &Vector3, percent: f64) -> Vector3 {
-        let dot = lhs.dot(rhs).clamp(-1.0, 1.0);
-        let theta = dot.acos() * percent;
-        let mut relative_vec = rhs - &(lhs * dot);
-        relative_vec.normalize();
-        &(lhs * theta.cos()) + &(&relative_vec * theta.sin())
-    }
 }
 
 impl std::ops::Add<&Vector3> for &Vector3 {

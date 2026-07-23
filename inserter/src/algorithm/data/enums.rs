@@ -1,4 +1,3 @@
-#[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum StarType {
@@ -9,15 +8,9 @@ pub enum StarType {
     BlackHole,
 }
 
-impl Default for StarType {
-    fn default() -> Self {
-        Self::MainSeqStar
-    }
-}
-
-#[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
+#[allow(dead_code)]
 pub enum SpectrType {
     M = -4,
     K = -3,
@@ -29,11 +22,9 @@ pub enum SpectrType {
     X = 3,
 }
 
-#[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PlanetType {
-    None,
     Volcano,
     Ocean,
     Desert,
@@ -41,20 +32,14 @@ pub enum PlanetType {
     Gas,
 }
 
-impl Default for PlanetType {
-    fn default() -> Self {
-        Self::None
-    }
-}
 
-#[allow(dead_code)]
+
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum ThemeDistribute {
     Default,
     Birth,
-    Interstellar,
-    Rare,
+    Interstellar
 }
 
 impl Default for ThemeDistribute {
@@ -63,7 +48,6 @@ impl Default for ThemeDistribute {
     }
 }
 
-#[allow(dead_code)]
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum VeinType {
@@ -83,12 +67,6 @@ pub enum VeinType {
     Bamboo,
     Mag,
     Max,
-}
-
-impl Default for VeinType {
-    fn default() -> Self {
-        Self::None
-    }
 }
 
 impl VeinType {

@@ -18,7 +18,7 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct Planet<'a> {
     game_desc: &'a GameDesc,
-    pub star: Rc<Star<'a>>,
+    pub star: Rc<Star>,
     pub index: usize,
     habitable_count: &'a Cell<i32>,
     pub seed: i32,
@@ -63,7 +63,7 @@ const ORBIT_RADIUS: &'static [f32] = &[
 impl<'a> Planet<'a> {
     pub fn new(
         game_desc: &'a GameDesc,
-        star: Rc<Star<'a>>,
+        star: Rc<Star>,
         index: usize,
         habitable_count: &'a Cell<i32>,
         orbit_index: usize,
@@ -222,17 +222,6 @@ impl<'a> Planet<'a> {
             let temperature_factor_val = self.get_temperature_factor();
             (1.2 / ((temperature_factor_val as f64) + 0.2) - 1.0) as f32
         }
-    }
-
-    fn get_luminosity(&self) -> f32 {
-        let mut luminosity =
-            (self.star.get_light_balance_radius() / (self.get_sun_distance() + 0.01)).powf(0.6);
-        if luminosity > 1.0 {
-            luminosity = luminosity.ln() + 1.0;
-            luminosity = luminosity.ln() + 1.0;
-            luminosity = luminosity.ln() + 1.0;
-        }
-        (luminosity * 100.0).round_ties_even() / 100.0
     }
 
     fn increment_habitable_count(&self) {
@@ -1124,7 +1113,6 @@ impl<'a> Planet<'a> {
                         }
                         let surface_height = raw_data.query_height(&pos);
                         if surface_height >= self.radius {
-                            // println!("{:?},{:?},{}", pos * surface_height, vein_type, amount);
                             amount_map[*vein_type as usize] += amount;
                         }
                     }

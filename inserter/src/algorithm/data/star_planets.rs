@@ -12,19 +12,18 @@ const MAX_VEIN_COUNT: usize = VeinType::Max as usize;
 
 #[derive(Debug)]
 pub struct StarWithPlanets<'a> {
-    pub star: Rc<Star<'a>>,
+    pub star: Rc<Star>,
     planets: UnsafeCell<Vec<Planet<'a>>>,
 
     safe: UnsafeCell<bool>,
     avg_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
-    actual_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
     game_desc: &'a GameDesc,
     habitable_count: &'a Cell<i32>,
 }
 
 impl<'a> StarWithPlanets<'a> {
     pub fn new(
-        star: Rc<Star<'a>>,
+        star: Rc<Star>,
         game_desc: &'a GameDesc,
         habitable_count: &'a Cell<i32>,
     ) -> Self {
@@ -33,7 +32,6 @@ impl<'a> StarWithPlanets<'a> {
             planets: UnsafeCell::new(Vec::with_capacity(6)),
             safe: UnsafeCell::new(false),
             avg_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
-            actual_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
             game_desc,
             habitable_count,
         }
@@ -101,40 +99,6 @@ impl<'a> StarWithPlanets<'a> {
         *cached_value = count;
         self.mark_safe();
         count
-    }
-
-    pub fn get_actual_vein(&self, vein_type: &VeinType) -> f32 {
-        if vein_type == &VeinType::Mag
-            && self.star.star_type != StarType::BlackHole
-            && self.star.star_type != StarType::NeutronStar
-        {
-            if !self.is_safe() {
-                self.load_planets();
-            }
-            return 0.0;
-        }
-        let index = *vein_type as usize;
-        let cached_value = unsafe {
-            let arr = &mut *self.actual_veins.get();
-            arr.get_unchecked_mut(index)
-        };
-        if !cached_value.is_nan() {
-            return *cached_value;
-        }
-        let mut count = 0;
-        for planet in self.get_planets() {
-            if !planet.can_have_vein(vein_type) {
-                continue;
-            }
-            for vein in planet.get_actual_veins() {
-                if &vein.vein_type == vein_type {
-                    count += vein.amount;
-                }
-            }
-        }
-        *cached_value = count as f32;
-        self.mark_safe();
-        count as f32
     }
 
     pub fn get_planets(&self) -> &Vec<Planet<'a>> {

@@ -39,10 +39,9 @@ fn generate_temp_poses(seed: i32, target_count: usize) -> Vec<Vector3> {
 
 fn random_poses(tmp_poses: &mut Vec<Vector3>, seed: i32, max_count: usize) {
     let mut rand = DspRandom::new(seed);
-    let drunk_walk_count_rand = rand.next_f64();
     let mut tmp_drunk: Vec<Vector3> = Vec::with_capacity(max_count);
     tmp_poses.push(Vector3::zero());
-    let drunk_num = (drunk_walk_count_rand * DRUNK_NUM_RANGE + (MIN_DRUNK_NUM as f64)) as i32;
+    let drunk_num = (rand.next_f64() * DRUNK_NUM_RANGE + (MIN_DRUNK_NUM as f64)) as i32;
     for _ in 0..drunk_num {
         for _ in 0..256 {
             let u = rand.next_f64() * 2.0 - 1.0;
@@ -141,12 +140,12 @@ pub fn generate_stars<'a>(
         if index == 0 {
             stars.push(StarWithPlanets::new(
                 Rc::new(Star::new(
-                    game_desc,
                     0,
                     seed,
                     Vector3::zero(),
                     StarType::MainSeqStar,
                     &SpectrType::X,
+                    game_desc.star_count,
                 )),
                 game_desc,
                 habitable_count,
@@ -172,12 +171,12 @@ pub fn generate_stars<'a>(
             };
             stars.push(StarWithPlanets::new(
                 Rc::new(Star::new(
-                    game_desc,
                     index,
                     seed,
                     position,
                     need_type,
                     &need_spectr,
+                    game_desc.star_count,
                 )),
                 game_desc,
                 habitable_count,

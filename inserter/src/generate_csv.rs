@@ -7,9 +7,6 @@ pub fn gen_formatted(seed: i32) -> anyhow::Result<(String, String)> {
     let game_desc: GameDesc = GameDesc {
         star_count: crate::STAR_COUNT,
         resource_multiplier: crate::REC_MULTIPLIER,
-        hive_initial_colonize: crate::INITIAL_COLONIZE,
-        hive_max_density: crate::DF_MAX_DENSITY,
-        use_actual_veins: false
     };
     let hab_count = std::cell::Cell::new(0i32);
     let galaxy = generate_stars(seed, &game_desc, &hab_count);

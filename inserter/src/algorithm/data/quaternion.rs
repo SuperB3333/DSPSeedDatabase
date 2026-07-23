@@ -11,19 +11,6 @@ pub struct Quaternion {
 }
 
 impl Quaternion {
-    pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
-        Self { x, y, z, w }
-    }
-
-    pub fn identity() -> Self {
-        Self {
-            x: 0.0,
-            y: 0.0,
-            z: 0.0,
-            w: 1.0,
-        }
-    }
-
     /// Port of Unity's `Quaternion.AngleAxis(angle_degrees, axis)`.
     /// `angle_degrees` is in degrees (same as Unity's AngleAxis).
     pub fn angle_axis(angle_degrees: f32, axis: &VectorF3) -> Self {
@@ -60,7 +47,7 @@ impl Quaternion {
         let from_mag_sq = from.magnitude_sq();
         let to_mag_sq = to.magnitude_sq();
         if from_mag_sq < 1e-10 || to_mag_sq < 1e-10 {
-            return Self::identity();
+            return Self { x: 0.0, y: 0.0, z: 0.0, w: 1.0 };
         }
 
         let from_norm = from.normalized();

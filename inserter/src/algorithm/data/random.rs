@@ -118,11 +118,6 @@ impl DspRandom {
     }
 
     #[inline]
-    pub fn next_usize(&mut self) -> usize {
-        (self.sample() * (i32::MAX as f64)) as usize
-    }
-
-    #[inline]
     pub fn next_seed(&mut self) -> i32 {
         (self.sample() * (i32::MAX as f64)) as i32
     }
