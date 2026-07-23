@@ -15,8 +15,8 @@ pub struct StarWithPlanets<'a> {
     pub star: Rc<Star>,
     planets: UnsafeCell<Vec<Planet<'a>>>,
 
-    safe: UnsafeCell<bool>,
-    avg_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
+    safe: Cell<bool>,
+    avg_veins: Cell<[f32; MAX_VEIN_COUNT]>,
     game_desc: &'a GameDesc,
     habitable_count: &'a Cell<i32>,
 }
@@ -30,21 +30,17 @@ impl<'a> StarWithPlanets<'a> {
         Self {
             star,
             planets: UnsafeCell::new(Vec::with_capacity(6)),
-            safe: UnsafeCell::new(false),
-            avg_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
+            safe: Cell::new(false),
+            avg_veins: Cell::new([f32::NAN; MAX_VEIN_COUNT]),
             game_desc,
             habitable_count,
         }
     }
 
-    pub fn is_safe(&self) -> bool {
-        unsafe { *self.safe.get() }
-    }
+    pub fn is_safe(&self) -> bool { self.safe.get() }
 
     pub fn mark_safe(&self) {
-        unsafe {
-            *self.safe.get() = true;
-        }
+        self.safe.set(true);
     }
 
     pub fn load_planets(&self) {
@@ -66,10 +62,8 @@ impl<'a> StarWithPlanets<'a> {
             return 0.0;
         }
         let index = *vein_type as usize;
-        let cached_value = unsafe {
-            let arr = &mut *self.avg_veins.get();
-            arr.get_unchecked_mut(index)
-        };
+        let mut veins = self.avg_veins.get();
+        let cached_value = &mut veins[index];
         if !cached_value.is_nan() {
             return *cached_value;
         }
@@ -96,7 +90,8 @@ impl<'a> StarWithPlanets<'a> {
                 }
             }
         }
-        *cached_value = count;
+        veins[index] = count;
+        self.avg_veins.set(veins);
         self.mark_safe();
         count
     }
@@ -334,8 +329,9 @@ impl<'a> StarWithPlanets<'a> {
                             } else {
                                 0.45_f32
                             };
-                            let orbit_skip_threshold =
-                                remaining_ratio + (1.0 - remaining_ratio) * skip_chance_base + 0.01;
+                            let orbit_skip_threshold = remaining_ratio
+                                + (1.0 - remaining_ratio) * skip_chance_base
+                                + 0.01;
                             if rand2.next_f64() < orbit_skip_threshold as f64 {
                                 broke_from_loop = true;
                                 break;

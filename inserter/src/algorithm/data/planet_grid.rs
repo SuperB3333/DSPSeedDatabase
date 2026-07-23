@@ -32,7 +32,7 @@ pub struct PlanetGrid {
 
 impl PlanetGrid {
     pub fn get_vertex(&self, index: usize) -> &VectorF3 {
-        unsafe { &self.vertices.get_unchecked(index) }
+        &self.vertices[index]
     }
 }
 

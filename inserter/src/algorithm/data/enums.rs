@@ -21,7 +21,21 @@ pub enum SpectrType {
     O = 2,
     X = 3,
 }
-
+impl From<i32> for SpectrType {
+    fn from(i: i32) -> Self {
+        match i {
+            -4 => SpectrType::M,
+            -3 => SpectrType::K,
+            -2 => SpectrType::G,
+            -1 => SpectrType::F,
+            0 => SpectrType::A,
+            1 => SpectrType::B,
+            2 => SpectrType::O,
+            3 => SpectrType::X,
+            _ => unreachable!(), // or return a default
+        }
+    }
+}
 #[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Hash, Clone, Copy)]
 pub enum PlanetType {
