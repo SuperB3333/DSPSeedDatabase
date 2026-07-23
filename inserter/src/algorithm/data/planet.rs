@@ -628,7 +628,7 @@ impl<'a> Planet<'a> {
             for index3 in 1..15 {
                 let vein_spot_count = vein_spots[index3 as usize];
                 if vein_spot_count > 0 {
-                    let vein_type = VeinType::try_from(index3).unwrap();
+                    let vein_type: VeinType = super::enums::ORES[index3 as usize];
                     let mut vein = EstimatedVein::default();
                     vein.vein_type = vein_type;
                     vein.min_group = vein_spot_count - 1;
@@ -972,7 +972,7 @@ impl<'a> Planet<'a> {
                 if vein_spot_count > 1 {
                     vein_spot_count += rand2.next_i32(3) - 1;
                 }
-                let vein_type = VeinType::try_from(index3).unwrap();
+                let vein_type: VeinType = super::enums::ORES[index3 as usize];
                 let min_sq_dist = min_vein_spacing_sq
                     * (if vein_type == VeinType::Oil {
                         100_f64
@@ -1108,7 +1108,7 @@ impl<'a> Planet<'a> {
                 .enumerate()
                 .filter(|(_, &amount)| amount > 0)
                 .map(|(i, &amount)| ActualVein {
-                    vein_type: VeinType::try_from(i as i32).unwrap(),
+                    vein_type: super::enums::ORES[i],
                     amount,
                 })
                 .collect()
