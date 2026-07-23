@@ -27,7 +27,6 @@ crate-type = ["cdylib"]
 # Dependencies for all builds
 [dependencies]
 once_cell = "1.19.0"
-serde = { version = "1.0.193", features = ["derive", "rc"] }
 
 # Dependencies for binary
 crossbeam-channel = {  version = "0.5.15", optional = true }

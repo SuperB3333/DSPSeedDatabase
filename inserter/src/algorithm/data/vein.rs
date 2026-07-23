@@ -1,8 +1,6 @@
 use super::enums::VeinType;
-use serde::Serialize;
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct EstimatedVein {
     pub vein_type: VeinType,
     pub min_group: i32,
@@ -45,8 +43,7 @@ impl EstimatedVein {
     }
 }
 
-#[derive(Debug, Clone, Serialize)]
-#[serde(rename_all = "camelCase")]
+#[derive(Debug, Clone)]
 pub struct ActualVein {
     pub vein_type: VeinType,
     pub amount: i32, // times 4e-5 for oil

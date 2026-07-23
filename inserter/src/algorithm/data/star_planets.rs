@@ -7,37 +7,18 @@ use super::enums::{SpectrType, StarType, VeinType};
 use super::planet::Planet;
 use super::random::DspRandom;
 use super::star::Star;
-use serde::Serialize;
-
-pub fn serialize_planets<S>(
-    planets: &UnsafeCell<Vec<Planet<'_>>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    unsafe { &*planets.get() }.serialize(serializer)
-}
 
 const MAX_VEIN_COUNT: usize = VeinType::Max as usize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct StarWithPlanets<'a> {
-    pub name: String,
-    #[serde(flatten)]
     pub star: Rc<Star<'a>>,
-    #[serde(serialize_with = "serialize_planets")]
     planets: UnsafeCell<Vec<Planet<'a>>>,
 
-    #[serde(skip)]
     safe: UnsafeCell<bool>,
-    #[serde(skip)]
     avg_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
-    #[serde(skip)]
     actual_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
-    #[serde(skip)]
     game_desc: &'a GameDesc,
-    #[serde(skip)]
     habitable_count: &'a Cell<i32>,
 }
 
@@ -53,7 +34,6 @@ impl<'a> StarWithPlanets<'a> {
             safe: UnsafeCell::new(false),
             avg_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
             actual_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
-            name: Default::default(),
             game_desc,
             habitable_count,
         }

@@ -11,7 +11,6 @@ use super::star::Star;
 use super::theme_proto::{ThemeProto, THEME_PROTOS};
 use super::vector_f3::VectorF3;
 use super::vein::{ActualVein, EstimatedVein};
-use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -1216,31 +1215,3 @@ const SEGMENT_TABLE: [i32; 512] = [
     500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
     500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
 ];
-
-impl Serialize for Planet<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("Planet", 15)?;
-        state.serialize_field("index", &self.index)?;
-        state.serialize_field("orbitAround", &self.orbit_around.borrow().map(|p| p.index))?;
-        state.serialize_field("orbitIndex", &self.orbit_index)?;
-        state.serialize_field("orbitRadius", &self.get_orbital_radius())?;
-        state.serialize_field("orbitInclination", &self.get_orbit_inclination())?;
-        state.serialize_field("orbitLongitude", &self.orbit_longitude)?;
-        state.serialize_field("orbitalPeriod", &self.get_orbital_period())?;
-        state.serialize_field("obliquity", &self.get_obliquity())?;
-        state.serialize_field("rotationPeriod", &self.get_rotation_period())?;
-        state.serialize_field("type", &self.get_type())?;
-        state.serialize_field("luminosity", &self.get_luminosity())?;
-        state.serialize_field("theme", &self.get_theme())?;
-        state.serialize_field("gases", &self.get_gases())?;
-        if self.game_desc.use_actual_veins {
-            state.serialize_field("actualVeins", &self.get_actual_veins())?;
-        } else {
-            state.serialize_field("veins", &self.get_estimated_veins())?;
-        }
-        state.end()
-    }
-}

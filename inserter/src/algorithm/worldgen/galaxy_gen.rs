@@ -1,9 +1,6 @@
-use super::name_gen::random_name;
 use crate::algorithm::data::enums::{SpectrType, StarType};
-use crate::algorithm::data::galaxy::Galaxy;
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::data::random::DspRandom;
-use crate::algorithm::data::rule::{Evaluation, Rule};
 use crate::algorithm::data::star::Star;
 use crate::algorithm::data::star_planets::StarWithPlanets;
 use crate::algorithm::data::vector3::Vector3;
@@ -102,7 +99,7 @@ fn check_collision(tmp_poses: &Vec<Vector3>, pt: &Vector3) -> bool {
         .any(|existing_point| existing_point.distance_sq_from(pt) < MIN_DIST_SQ)
 }
 
-fn generate_stars<'a>(
+pub fn generate_stars<'a>(
     seed: i32,
     game_desc: &'a GameDesc,
     habitable_count: &'a Cell<i32>,
@@ -184,22 +181,4 @@ fn generate_stars<'a>(
         }
     }
     stars
-}
-
-pub fn create_galaxy<'a>(
-    seed: i32,
-    game_desc: &'a GameDesc,
-    habitable_count: &'a Cell<i32>,
-) -> Galaxy<'a> {
-    let mut stars = generate_stars(seed, game_desc, habitable_count);
-    let mut names: Vec<&str> = Vec::with_capacity(game_desc.star_count);
-
-    for sp in stars.iter_mut() {
-        let name = random_name(sp.star.name_seed, &sp.star, names.iter());
-        sp.name = name;
-        names.push(&sp.name);
-        sp.load_planets();
-    }
-
-    Galaxy { seed, stars }
 }

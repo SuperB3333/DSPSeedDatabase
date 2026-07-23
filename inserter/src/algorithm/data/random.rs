@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct DspRandom {
     inext: usize,
     inextp: usize,
