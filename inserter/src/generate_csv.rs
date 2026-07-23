@@ -1,7 +1,7 @@
 use crate::algorithm::data;
 use crate::algorithm::data::enums::{PlanetType, ORES};
 use crate::algorithm::data::game_desc::GameDesc;
-use crate::algorithm::worldgen::galaxy_gen::generate_stars;
+use crate::algorithm::generate_stars;
 
 pub fn gen_formatted(seed: i32) -> anyhow::Result<(String, String)> {
     let game_desc: GameDesc = GameDesc {
