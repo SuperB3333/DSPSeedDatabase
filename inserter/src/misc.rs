@@ -170,13 +170,13 @@ pub fn validate_config() -> anyhow::Result<()> {
         crate::error_return!("COMMIT_COUNT must be greater than 0");
     }
 
-    if *START_SEED < *END_SEED {
-        crate::error_return!("START_SEED is lower than END_SEED");
+    if *START_SEED > *END_SEED {
+        crate::error_return!("START_SEED is higher than END_SEED");
     }
-    if *WORKER_THREADS < (*END_SEED - *START_SEED) {
+    if *WORKER_THREADS > (*END_SEED - *START_SEED) {
         crate::error_return!("More worker threads than seeds to process");
     }
-    if *WORKER_THREADS < MAX_WORKERS as i32 {
+    if *WORKER_THREADS > MAX_WORKERS as i32 {
         crate::error_return!("More worker threads than the binary allows! Try to compile with MAX_WORKERS set higher.");
     }
     

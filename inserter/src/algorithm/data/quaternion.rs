@@ -11,10 +11,12 @@ pub struct Quaternion {
 }
 
 impl Quaternion {
+    #[inline]
     pub fn new(x: f32, y: f32, z: f32, w: f32) -> Self {
         Self { x, y, z, w }
     }
 
+    #[inline]
     pub fn identity() -> Self {
         Self {
             x: 0.0,
@@ -26,6 +28,7 @@ impl Quaternion {
 
     /// Port of Unity's `Quaternion.AngleAxis(angle_degrees, axis)`.
     /// `angle_degrees` is in degrees (same as Unity's AngleAxis).
+    #[inline]
     pub fn angle_axis(angle_degrees: f32, axis: &VectorF3) -> Self {
         let half_rad = (angle_degrees * std::f32::consts::PI / 180.0) * 0.5;
         let s = half_rad.sin();
@@ -40,6 +43,7 @@ impl Quaternion {
 
     /// Port of `Maths.QInvRotateLF(Quaternion, VectorLF3)` — inverse rotates a VectorF3.
     /// Since the user specified VectorLF3 maps to VectorF3 in Rust, this uses f32.
+    #[inline]
     pub fn q_inv_rotate_lf(&self, v: &VectorF3) -> VectorF3 {
         let vx = v.0 * 2.0;
         let vy = v.1 * 2.0;
@@ -56,6 +60,7 @@ impl Quaternion {
     /// Port of Unity's `Quaternion.FromToRotation(fromDirection, toDirection)`.
     ///
     /// Creates a rotation that rotates `from` to align with `to`.
+    #[inline]
     pub fn from_to_rotation(from: &VectorF3, to: &VectorF3) -> Self {
         let from_mag_sq = from.magnitude_sq();
         let to_mag_sq = to.magnitude_sq();
@@ -113,6 +118,7 @@ impl Quaternion {
     }
 
     /// Port of `Maths.QRotateLF(Quaternion, VectorLF3)` — rotates a VectorF3.
+    #[inline]
     pub fn q_rotate_lf(&self, v: &VectorF3) -> VectorF3 {
         let vx = v.0 * 2.0;
         let vy = v.1 * 2.0;
@@ -134,6 +140,7 @@ impl Quaternion {
 impl Mul<&VectorF3> for &Quaternion {
     type Output = VectorF3;
 
+    #[inline]
     fn mul(self, point: &VectorF3) -> VectorF3 {
         let num1 = self.x * 2.0;
         let num2 = self.y * 2.0;
@@ -159,6 +166,7 @@ impl Mul<&VectorF3> for &Quaternion {
 impl Mul<Quaternion> for Quaternion {
     type Output = Quaternion;
 
+    #[inline]
     fn mul(self, rhs: Quaternion) -> Quaternion {
         Quaternion {
             x: self.x * rhs.w + self.y * rhs.z - self.z * rhs.y + self.w * rhs.x,
@@ -172,6 +180,7 @@ impl Mul<Quaternion> for Quaternion {
 impl Mul<&Quaternion> for Quaternion {
     type Output = Quaternion;
 
+    #[inline]
     fn mul(self, rhs: &Quaternion) -> Quaternion {
         Quaternion {
             x: self.x * rhs.w + self.y * rhs.z - self.z * rhs.y + self.w * rhs.x,
@@ -185,6 +194,7 @@ impl Mul<&Quaternion> for Quaternion {
 impl Mul<Quaternion> for &Quaternion {
     type Output = Quaternion;
 
+    #[inline]
     fn mul(self, rhs: Quaternion) -> Quaternion {
         Quaternion {
             x: self.x * rhs.w + self.y * rhs.z - self.z * rhs.y + self.w * rhs.x,
@@ -198,6 +208,7 @@ impl Mul<Quaternion> for &Quaternion {
 impl Mul<&Quaternion> for &Quaternion {
     type Output = Quaternion;
 
+    #[inline]
     fn mul(self, rhs: &Quaternion) -> Quaternion {
         Quaternion {
             x: self.x * rhs.w + self.y * rhs.z - self.z * rhs.y + self.w * rhs.x,

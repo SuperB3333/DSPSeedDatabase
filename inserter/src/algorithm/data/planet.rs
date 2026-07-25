@@ -286,6 +286,7 @@ impl<'a> Planet<'a> {
         }
     }
 
+    #[allow(dead_code)]
     pub fn is_tidal_locked(&self) -> bool {
         self.get_rotation_period() == self.get_orbital_period()
     }
