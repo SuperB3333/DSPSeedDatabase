@@ -9,7 +9,7 @@ app = FastAPI()
 
 glob_return_dict = {}
 
-@app.get("/start_query")
+@app.post("/start_query")
 def start_query(query: str, params: list):
     h = sha256(query.encode())
     h.update(bytes(int(time.time())))
@@ -20,9 +20,9 @@ def start_query(query: str, params: list):
 
     return qid
 
-@app.get("/query_ready")
+@app.post("/query_ready")
 def query_status(qid: str):
     return "true" if glob_return_dict[qid] is not None else "false"
-@app.get("/get_result")
+@app.post("/get_result")
 def query_result(qid: str):
     return list(glob_return_dict[qid])

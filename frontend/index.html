@@ -12,6 +12,7 @@
         <div class="toolbar">
             <button onclick="compileRuleset()">Compile Ruleset</button>
             <button onclick="clearAndReset()">Reset</button>
+            <button onclick="call_api()">Start Request</button>
         </div>
 
         <div id="rule-tree-container"></div>
@@ -21,13 +22,20 @@
             <pre id="sql-output"></pre>
             <h2>Parameters</h2>
             <pre id="params-output"></pre>
+
+            <h2>Results</h2>
+            <div class="results-container">
+                <h2>Status: </h2>
+                <h2 id="status-str" style="color: #FF0000">not queried</h2>
+            </div>
+            <pre id="results-seeds" hidden></pre>
         </div>
     </div>
-
     <script src="js/rules.js"></script>
     <script src="js/metadata.js"></script>
     <script src="js/storage.js"></script>
     <script src="js/ui.js"></script>
     <script src="js/main.js"></script>
+    <script src="js/api.js"></script>
 </body>
 </html>
