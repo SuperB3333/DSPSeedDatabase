@@ -75,7 +75,7 @@ pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::
                                      star_id,
                                      planet.index,
                                      orbiting,
-                                     planet.get_theme().water_item_id,
+                                     planet.get_theme().ocean_type as i32,
                                      planet.get_type() == &PlanetType::Gas,
                                      planet.get_orbital_radius(),
                                      planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32,

@@ -3,7 +3,7 @@ use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::data::planet_raw_data::PlanetRawData;
 use crate::algorithm::data::vector_f2::VectorF2;
 
-use super::enums::{PlanetType, SpectrType, StarType, ThemeDistribute, VeinType};
+use super::enums::{OceanType, PlanetType, SpectrType, StarType, ThemeDistribute, VeinType};
 use super::pose::Pose;
 use super::quaternion::Quaternion;
 use super::random::DspRandom;
@@ -13,6 +13,7 @@ use super::vector_f3::VectorF3;
 use super::vein::{ActualVein, EstimatedVein};
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{Cell, OnceCell, RefCell};
+use std::cmp::PartialEq;
 use std::f64::consts::PI;
 use std::rc::Rc;
 
@@ -60,6 +61,7 @@ pub struct Planet<'a> {
 const ORBIT_RADIUS: &'static [f32] = &[
     0.0, 0.4, 0.7, 1.0, 1.4, 1.9, 2.5, 3.3, 4.3, 5.5, 6.9, 8.4, 10.0, 11.7, 13.5, 15.4, 17.5,
 ];
+
 
 impl<'a> Planet<'a> {
     pub fn new(
@@ -1114,7 +1116,7 @@ impl<'a> Planet<'a> {
                         };
                         (((raw_amount as f32) * 1.1 * multiplier).round_ties_even() as i32).max(1)
                     };
-                    if algo_id == 7 || theme.water_item_id == 0 {
+                    if algo_id == 7 || theme.ocean_type == OceanType::None {
                         amount_map[*vein_type as usize] += amount;
                     } else {
                         let node_offset =

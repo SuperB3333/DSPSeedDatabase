@@ -125,3 +125,13 @@ pub const ORES: [VeinType; 16] = [
     VeinType::Mag,
     VeinType::Max,
 ];
+
+#[repr(i32)]
+#[derive(Clone, Debug, serde::Serialize, PartialEq, Copy)]
+pub enum OceanType {
+    None = 0,
+    Ice = -2,
+    Lava = -1,
+    Water = 1000,
+    Acid = 1116
+}
