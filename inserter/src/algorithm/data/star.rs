@@ -4,6 +4,7 @@ use super::random::DspRandom;
 use super::vector3::Vector3;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{OnceCell, RefCell};
+use std::convert::TryFrom;
 use std::f64::consts::PI;
 
 #[derive(Debug)]
@@ -320,11 +321,7 @@ impl<'a> Star<'a> {
             ) {
                 SpectrType::X
             } else {
-                unsafe {
-                    ::std::mem::transmute::<i32, SpectrType>(
-                        self.get_class_factor().round_ties_even() as i32,
-                    )
-                }
+                SpectrType::try_from(self.get_class_factor().round_ties_even() as i32).unwrap()
             }
         })
     }
@@ -526,7 +523,7 @@ impl<'a> Star<'a> {
                 return initial_hive_count.clamp(birth_min_hives, max_hive_count);
             }
             let hive_probability_base = ((1.0
-                - (((self.get_safety_factor() * 1.05 - 0.15) as f32)
+                - ((self.get_safety_factor() * 1.05 - 0.15)
                     .clamp(0.0, 1.0)
                     .powf(0.82) as f64)
                 - (((max_hive_count - 1) as f64) * 0.05))

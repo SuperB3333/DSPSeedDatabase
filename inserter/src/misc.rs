@@ -134,6 +134,7 @@ impl Timer {
     pub fn is_ready(&self) -> bool {
         Instant::now().duration_since(self.last) >= self.interval
     }
+    // noinspection ALL
     pub fn is_ready_autoreset(&mut self) -> bool {
         if !self.is_ready() { return false }
         self.reset();

@@ -2,6 +2,7 @@ use crate::algorithm::data::birth_points::BirthPoints;
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::data::planet_raw_data::PlanetRawData;
 use crate::algorithm::data::vector_f2::VectorF2;
+use std::convert::TryFrom;
 
 use super::enums::{OceanType, PlanetType, SpectrType, StarType, ThemeDistribute, VeinType};
 use super::pose::Pose;
@@ -41,7 +42,6 @@ pub struct Planet<'a> {
     pub orbit_phase: f32,
     pub rotation_phase: f32,
     theme_rand1: f64,
-    theme_rand2: f64,
     theme_rand3: f64,
     theme_rand4: f64,
     orbital_radius: OnceCell<f32>,
@@ -55,7 +55,7 @@ pub struct Planet<'a> {
     gases: OnceCell<Vec<(i32, f32)>>,
     estimated_veins: OnceCell<Vec<EstimatedVein>>,
     actual_veins: OnceCell<Vec<ActualVein>>,
-    theme_algo_id: OnceCell<super::planet_algorithms::PlanetAlgorithms>,
+    theme_algo_id: OnceCell<PlanetAlgorithms>,
 }
 
 const ORBIT_RADIUS: &'static [f32] = &[
@@ -93,7 +93,7 @@ impl<'a> Planet<'a> {
         let type_factor = rand.next_f64();
         let theme_rand1 = rand.next_f64();
         let rotation_param = rand.next_f64();
-        let theme_rand2 = rand.next_f64();
+        rand.next_f64();
         let theme_rand3 = rand.next_f64();
         let theme_rand4 = rand.next_f64();
         let theme_seed = rand.next_seed();
@@ -119,7 +119,6 @@ impl<'a> Planet<'a> {
             orbit_phase,
             rotation_phase,
             theme_rand1,
-            theme_rand2,
             theme_rand3,
             theme_rand4,
             obliquity_scale,
@@ -464,7 +463,7 @@ impl<'a> Planet<'a> {
         })
     }
 
-    pub fn get_algo(&self) -> super::planet_algorithms::PlanetAlgorithms {
+    pub fn get_algo(&self) -> PlanetAlgorithms {
         *self.theme_algo_id.get_or_init(|| {
             self.get_theme()
                 .algo
@@ -640,7 +639,7 @@ impl<'a> Planet<'a> {
             for index3 in 1..15 {
                 let vein_spot_count = vein_spots[index3 as usize];
                 if vein_spot_count > 0 {
-                    let vein_type: VeinType = unsafe { ::std::mem::transmute(index3) };
+                    let vein_type = VeinType::try_from(index3).unwrap();
                     let mut vein = EstimatedVein::new();
                     vein.vein_type = vein_type;
                     vein.min_group = vein_spot_count - 1;
@@ -984,7 +983,7 @@ impl<'a> Planet<'a> {
                 if vein_spot_count > 1 {
                     vein_spot_count += rand2.next_i32(3) - 1;
                 }
-                let vein_type: VeinType = unsafe { ::std::mem::transmute(index3) };
+                let vein_type = VeinType::try_from(index3).unwrap();
                 let min_sq_dist = min_vein_spacing_sq
                     * (if vein_type == VeinType::Oil {
                         100_f64
@@ -1121,7 +1120,7 @@ impl<'a> Planet<'a> {
                 .enumerate()
                 .filter(|(_, &amount)| amount > 0)
                 .map(|(i, &amount)| ActualVein {
-                    vein_type: unsafe { ::std::mem::transmute(i as i32) },
+                    vein_type: VeinType::try_from(i as i32).unwrap(),
                     amount,
                 })
                 .collect()

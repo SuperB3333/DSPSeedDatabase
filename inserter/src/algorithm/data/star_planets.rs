@@ -364,7 +364,7 @@ impl<'a> StarWithPlanets<'a> {
             let mut orbit_around: Option<usize> = None;
             let mut current_orbit_index: usize = 1;
             let mut orbits: Vec<(usize, usize)> = Vec::with_capacity(4);
-            for index in 0..planet_count as usize {
+            for index in 0..planet_count {
                 let info_seed = rand2.next_seed();
                 let gen_seed = rand2.next_seed();
                 let gas_giant_chance_rand = rand2.next_f64();

@@ -56,7 +56,7 @@ impl SimplexNoise {
 
         for i in 0..512 {
             self.perm[i] = p[i & 255];
-            self.perm_mod12[i] = (self.perm[i] % 12) as i16;
+            self.perm_mod12[i] = self.perm[i] % 12;
         }
     }
 
@@ -105,20 +105,17 @@ impl SimplexNoise {
         let idx1 = (num4 & 255) as usize;
 
         let index2 = self.perm_mod12
-            [(n15 + self.perm[(n16 + self.perm[idx1] as usize) as usize] as usize) as usize]
+            [n15 + self.perm[n16 + self.perm[idx1] as usize] as usize]
             as usize;
-        let index3 = self.perm_mod12[(n15
+        let index3 = self.perm_mod12[n15
             + n9
-            + self.perm[(n16 + n10 + self.perm[(idx1 + n11) as usize] as usize) as usize] as usize)
-            as usize] as usize;
-        let index4 = self.perm_mod12[(n15
+            + self.perm[n16 + n10 + self.perm[idx1 + n11] as usize] as usize] as usize;
+        let index4 = self.perm_mod12[n15
             + n12
-            + self.perm[(n16 + n13 + self.perm[(idx1 + n14) as usize] as usize) as usize] as usize)
-            as usize] as usize;
-        let index5 = self.perm_mod12[(n15
+            + self.perm[n16 + n13 + self.perm[idx1 + n14] as usize] as usize] as usize;
+        let index5 = self.perm_mod12[n15
             + 1
-            + self.perm[(n16 + 1 + self.perm[(idx1 + 1) as usize] as usize) as usize] as usize)
-            as usize] as usize;
+            + self.perm[n16 + 1 + self.perm[idx1 + 1] as usize] as usize] as usize;
 
         let n17 = 0.6 - x1 * x1 - y1 * y1 - z1 * z1;
         let n18 = if n17 < 0.0 {

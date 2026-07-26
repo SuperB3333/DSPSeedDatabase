@@ -23,7 +23,7 @@ impl BirthPoints {
         // ---- main GenBirthPoints(PlanetRawData, int) body (C# lines 761-821) --
         let mut rand = DspRandom::new(birth_seed);
 
-        // vector3_1 is the incoming star_direction (already normalised)
+        // vector3_1 is the incoming star_direction (already normalized)
         let star_dir = star_direction.normalized();
 
         // C#: Vector3 normalized1 = Vector3.Cross(vector3_1, Vector3.up).normalized
@@ -105,7 +105,7 @@ impl BirthPoints {
                     let vpos7 = rp1_dir + basis2 * 0.03;
                     let vpos8 = rp1_dir - basis2 * 0.03;
 
-                    // Offset vectors are not unit-length; use the normalising variant
+                    // Offset vectors are not unit-length; use the normalizing variant
                     if raw_data.query_height(&vpos1) > height_threshold
                         && raw_data.query_height(&vpos2) > height_threshold
                         && raw_data.query_height(&vpos3) > height_threshold
@@ -115,7 +115,7 @@ impl BirthPoints {
                         && raw_data.query_height(&vpos7) > height_threshold
                         && raw_data.query_height(&vpos8) > height_threshold
                     {
-                        // Re‑normalise both resource-point directions
+                        // Re‑normalize both resource-point directions
                         let rp0 = rp0_dir.normalized();
                         let rp1 = rp1_dir.normalized();
 

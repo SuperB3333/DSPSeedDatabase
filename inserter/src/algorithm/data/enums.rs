@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::convert::TryFrom;
 
 #[allow(dead_code)]
 #[repr(i32)]
@@ -29,6 +30,24 @@ pub enum SpectrType {
     B = 1,
     O = 2,
     X = 3,
+}
+
+impl TryFrom<i32> for SpectrType {
+    type Error = i32;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            -4 => Ok(SpectrType::M),
+            -3 => Ok(SpectrType::K),
+            -2 => Ok(SpectrType::G),
+            -1 => Ok(SpectrType::F),
+            0 => Ok(SpectrType::A),
+            1 => Ok(SpectrType::B),
+            2 => Ok(SpectrType::O),
+            3 => Ok(SpectrType::X),
+            _ => Err(value),
+        }
+    }
 }
 
 #[allow(dead_code)]
@@ -125,6 +144,32 @@ pub const ORES: [VeinType; 16] = [
     VeinType::Mag,
     VeinType::Max,
 ];
+
+impl TryFrom<i32> for VeinType {
+    type Error = i32;
+
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
+        match value {
+            0 => Ok(VeinType::None),
+            1 => Ok(VeinType::Iron),
+            2 => Ok(VeinType::Copper),
+            3 => Ok(VeinType::Silicium),
+            4 => Ok(VeinType::Titanium),
+            5 => Ok(VeinType::Stone),
+            6 => Ok(VeinType::Coal),
+            7 => Ok(VeinType::Oil),
+            8 => Ok(VeinType::Fireice),
+            9 => Ok(VeinType::Diamond),
+            10 => Ok(VeinType::Fractal),
+            11 => Ok(VeinType::Crysrub),
+            12 => Ok(VeinType::Grat),
+            13 => Ok(VeinType::Bamboo),
+            14 => Ok(VeinType::Mag),
+            15 => Ok(VeinType::Max),
+            _ => Err(value),
+        }
+    }
+}
 
 #[repr(i32)]
 #[derive(Clone, Debug, serde::Serialize, PartialEq, Copy)]

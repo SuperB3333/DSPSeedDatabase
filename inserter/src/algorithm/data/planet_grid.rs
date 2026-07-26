@@ -150,16 +150,16 @@ pub fn position_hash(v: &VectorF3, corner: usize) -> usize {
 
     if vx >= vy && vx >= vz {
         n1 = 0;
-        n2 = trans((vz / vx) as f32, INDEX_MAP_PRECISION);
-        n3 = trans((vy / vx) as f32, INDEX_MAP_PRECISION);
+        n2 = trans(vz / vx, INDEX_MAP_PRECISION);
+        n3 = trans(vy / vx, INDEX_MAP_PRECISION);
     } else if vy >= vx && vy >= vz {
         n1 = 1;
-        n2 = trans((vx / vy) as f32, INDEX_MAP_PRECISION);
-        n3 = trans((vz / vy) as f32, INDEX_MAP_PRECISION);
+        n2 = trans(vx / vy, INDEX_MAP_PRECISION);
+        n3 = trans(vz / vy, INDEX_MAP_PRECISION);
     } else {
         n1 = 2;
-        n2 = trans((vx / vz) as f32, INDEX_MAP_PRECISION);
-        n3 = trans((vy / vz) as f32, INDEX_MAP_PRECISION);
+        n2 = trans(vx / vz, INDEX_MAP_PRECISION);
+        n3 = trans(vy / vz, INDEX_MAP_PRECISION);
     }
 
     n2 + n3 * INDEX_MAP_PRECISION + n1 * INDEX_MAP_FACE_STRIDE + corner * INDEX_MAP_CORNER_STRIDE
