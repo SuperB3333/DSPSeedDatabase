@@ -71,16 +71,14 @@ pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::
                 }
             }
 
-            planets.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},{},{},",
+            planets.push_str(format!("{},{},{},{},{},{},{},{},{},{},{},{},",
                                      star_id,
                                      planet.index,
                                      orbiting,
-                                     planet.get_theme().ocean_type as i32,
                                      planet.get_type() == &PlanetType::Gas,
                                      planet.get_orbital_radius(),
                                      planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32,
                                      satellite_count,
-                                     planet.get_theme().temperature,
                                      planet.get_theme().id,
                                      gas_h, gas_d, gas_i,
                                      planet.get_rotation_period() == planet.get_orbital_period()

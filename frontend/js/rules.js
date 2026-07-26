@@ -227,8 +227,8 @@ class GasGiantRule extends GenericRule {
     }
     toSql(alias = "p") {
         if (this.ice === null) return { sql: `${alias}.gas_giant = %s`, params: [true] };
-        else if (this.ice === false) return { sql: `(${alias}.gas_giant = %s AND ${alias}.temperature >= %s)`, params: [true, 0.0] };
-        else if (this.ice === true)  return { sql: `(${alias}.gas_giant = %s AND ${alias}.temperature < %s)`,  params: [true, 0.0] };
+        else if (this.ice === false) return { sql: `(${alias}.gas_giant = %s AND (SELECT t.temperature FROM themes t WHERE t.id = ${alias}.theme_id) >= %s)`, params: [true, 0.0] };
+        else if (this.ice === true)  return { sql: `(${alias}.gas_giant = %s AND (SELECT t.temperature FROM themes t WHERE t.id = ${alias}.theme_id) < %s)`,  params: [true, 0.0] };
         else throw new TypeError("this.ice was neither true, false or null");
     }
 }
@@ -360,7 +360,7 @@ class XDistRule extends AmountRule {
 
 class PlanetWaterIdRule extends AmountRule {
     toSqlRaw(alias = "p") {
-        return { sql: `${alias}.water_item`, params: [] };
+        return { sql: `(SELECT t.ocean_type FROM themes t WHERE t.id = ${alias}.theme_id)`, params: [] };
     }
 }
 

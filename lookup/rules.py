@@ -203,15 +203,15 @@ class XDistRule(AmountRule):
 
 class PlanetWaterIdRule(AmountRule):
     def to_sql(self, alias="p"):
-        return f"{alias}.water_item", []
+        return f"(SELECT t.ocean_type FROM themes t WHERE t.id = {alias}.theme_id)", []
 
 class GasGiantRule(GenericRule):
     def __init__(self, ice_giants: Union[bool, None] = None):
         self.ice = ice_giants
     def to_sql(self, alias="p") -> Tuple[str, List[Any]]:
         if self.ice is None: return f"{alias}.gas_giant = %s", [True]
-        elif self.ice is False: return f"({alias}.gas_giant = %s AND {alias}.temperature >= %s)", [True, 0.0]
-        elif self.ice is True:  return f"({alias}.gas_giant = %s AND {alias}.temperature < %s)",  [True, 0.0]
+        elif self.ice is False: return f"({alias}.gas_giant = %s AND (SELECT t.temperature FROM themes t WHERE t.id = {alias}.theme_id) >= %s)", [True, 0.0]
+        elif self.ice is True:  return f"({alias}.gas_giant = %s AND (SELECT t.temperature FROM themes t WHERE t.id = {alias}.theme_id) < %s)",  [True, 0.0]
         else: raise TypeError("self.ice was neither True, False or None")
 
 class GasRateRule(AmountRule):

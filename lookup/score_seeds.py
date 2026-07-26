@@ -80,7 +80,7 @@ def _build_metrics():
         "Number of planets that lie inside the Dyson sphere.",
     )
     metrics["oceans"] = (
-        "COUNT(*) FILTER (WHERE p.water_item = 1000)",
+        "COUNT(*) FILTER (WHERE (SELECT t.ocean_type FROM themes t WHERE t.id = p.theme_id) = 1000)",
         "Number of ocean (water) worlds in the seed.",
     )
     return metrics

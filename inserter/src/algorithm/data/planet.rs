@@ -11,9 +11,9 @@ use super::star::Star;
 use super::theme_proto::{ThemeProto, THEME_PROTOS};
 use super::vector_f3::VectorF3;
 use super::vein::{ActualVein, EstimatedVein};
+use super::planet_algorithms::PlanetAlgorithms;
 use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{Cell, OnceCell, RefCell};
-use std::cmp::PartialEq;
 use std::f64::consts::PI;
 use std::rc::Rc;
 
@@ -55,7 +55,7 @@ pub struct Planet<'a> {
     gases: OnceCell<Vec<(i32, f32)>>,
     estimated_veins: OnceCell<Vec<EstimatedVein>>,
     actual_veins: OnceCell<Vec<ActualVein>>,
-    theme_algo_id: OnceCell<i32>,
+    theme_algo_id: OnceCell<super::planet_algorithms::PlanetAlgorithms>,
 }
 
 const ORBIT_RADIUS: &'static [f32] = &[
@@ -464,39 +464,21 @@ impl<'a> Planet<'a> {
         })
     }
 
-    pub fn get_algo_id(&self) -> i32 {
+    pub fn get_algo(&self) -> super::planet_algorithms::PlanetAlgorithms {
         *self.theme_algo_id.get_or_init(|| {
-            let theme = self.get_theme();
-            if theme.algos.is_empty() {
-                0
-            } else {
-                *theme
-                    .algos
-                    .get(
-                        (self.theme_rand2 * (theme.algos.len() as f64)) as usize
-                            % theme.algos.len(),
-                    )
-                    .unwrap()
-            }
+            self.get_theme()
+                .algo
         })
     }
 
     pub fn get_mod_x(&self) -> f64 {
         let theme = self.get_theme();
-        if theme.algos.is_empty() {
-            0.0
-        } else {
-            theme.mod_x.0 + self.theme_rand3 * (theme.mod_x.1 - theme.mod_x.0)
-        }
+        theme.mod_x.0 + self.theme_rand3 * (theme.mod_x.1 - theme.mod_x.0)
     }
 
     pub fn get_mod_y(&self) -> f64 {
         let theme = self.get_theme();
-        if theme.algos.is_empty() {
-            0.0
-        } else {
-            theme.mod_y.0 + self.theme_rand4 * (theme.mod_y.1 - theme.mod_y.0)
-        }
+        theme.mod_y.0 + self.theme_rand4 * (theme.mod_y.1 - theme.mod_y.0)
     }
 
     pub fn get_type(&self) -> &PlanetType {
@@ -808,19 +790,19 @@ impl<'a> Planet<'a> {
 
     fn can_place_vein(
         &self,
-        algo_id: i32,
+        algo_id: PlanetAlgorithms,
         vein_type: &VeinType,
         zero: &VectorF3,
         raw_data: &mut PlanetRawData,
     ) -> bool {
-        if algo_id == 7 && vein_type != &VeinType::Bamboo {
+        if algo_id == PlanetAlgorithms::A7 && vein_type != &VeinType::Bamboo {
             return true;
         }
         // `zero` is already normalized by the caller
         let height = raw_data.query_height_normalized(zero);
         match algo_id {
-            7 => height <= self.radius - 4.0,
-            11 => {
+            PlanetAlgorithms::A7 => height <= self.radius - 4.0,
+            PlanetAlgorithms::A11 => {
                 height >= self.radius
                     && match vein_type {
                         &VeinType::Oil => height >= self.radius + 0.5,
@@ -829,7 +811,7 @@ impl<'a> Planet<'a> {
                         _ => true,
                     }
             }
-            12 => {
+            PlanetAlgorithms::A12 => {
                 height >= self.radius
                     && match vein_type {
                         &VeinType::Oil => height >= self.radius + 0.5,
@@ -837,7 +819,7 @@ impl<'a> Planet<'a> {
                         _ => true,
                     }
             }
-            13 => {
+            PlanetAlgorithms::A13 => {
                 height >= self.radius
                     && match vein_type {
                         &VeinType::Oil => height >= self.radius + 0.5,
@@ -992,7 +974,7 @@ impl<'a> Planet<'a> {
 
             let min_vein_spacing = 2.1 / self.radius;
             let min_vein_spacing_sq = (min_vein_spacing as f64) * (min_vein_spacing as f64);
-            let algo_id = self.get_algo_id();
+            let algo_id = self.get_algo();
 
             for index3 in 1..15 {
                 if vein_vectors.len() >= 512 {
@@ -1116,7 +1098,7 @@ impl<'a> Planet<'a> {
                         };
                         (((raw_amount as f32) * 1.1 * multiplier).round_ties_even() as i32).max(1)
                     };
-                    if algo_id == 7 || theme.ocean_type == OceanType::None {
+                    if algo_id == PlanetAlgorithms::A7 || theme.ocean_type == OceanType::None {
                         amount_map[*vein_type as usize] += amount;
                     } else {
                         let node_offset =
