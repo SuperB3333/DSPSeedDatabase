@@ -138,12 +138,12 @@ pub fn generate_stars<'a>(
         if index == 0 {
             stars.push(StarWithPlanets::new(
                 Rc::new(Star::new(
-                    game_desc,
                     0,
                     seed,
                     Vector3::zero(),
                     StarType::MainSeqStar,
                     &SpectrType::X,
+                    crate::STAR_COUNT
                 )),
                 game_desc,
                 habitable_count,
@@ -169,12 +169,12 @@ pub fn generate_stars<'a>(
             };
             stars.push(StarWithPlanets::new(
                 Rc::new(Star::new(
-                    game_desc,
                     index,
                     seed,
                     position,
                     need_type,
                     &need_spectr,
+                    crate::STAR_COUNT
                 )),
                 game_desc,
                 habitable_count,
