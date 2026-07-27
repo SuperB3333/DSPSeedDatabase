@@ -1,6 +1,5 @@
 pub mod birth_points;
 pub mod enums;
-pub mod galaxy;
 pub mod game_desc;
 pub mod math;
 pub mod planet;
@@ -11,7 +10,6 @@ pub mod pose;
 pub mod quaternion;
 pub mod random;
 pub mod random_table;
-pub mod rule;
 pub mod simplex_noise;
 pub mod star;
 pub mod star_planets;

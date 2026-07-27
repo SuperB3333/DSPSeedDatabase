@@ -7,44 +7,23 @@ use super::enums::{SpectrType, StarType, VeinType};
 use super::planet::Planet;
 use super::random::DspRandom;
 use super::star::Star;
-use serde::Serialize;
-
-pub fn serialize_planets<S>(
-    planets: &UnsafeCell<Vec<Planet<'_>>>,
-    serializer: S,
-) -> Result<S::Ok, S::Error>
-where
-    S: serde::Serializer,
-{
-    unsafe { &*planets.get() }.serialize(serializer)
-}
 
 const MAX_VEIN_COUNT: usize = VeinType::Max as usize;
 
-#[derive(Debug, Serialize)]
+#[derive(Debug)]
 pub struct StarWithPlanets<'a> {
-    pub name: String,
-    #[serde(flatten)]
-    pub star: Rc<Star<'a>>,
-    #[serde(serialize_with = "serialize_planets")]
+    pub star: Rc<Star>,
     planets: UnsafeCell<Vec<Planet<'a>>>,
 
-    #[serde(skip)]
     safe: Cell<bool>,
-    #[serde(skip)]
-    avg_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
-    #[serde(skip)]
-    #[allow(dead_code)]
-    actual_veins: UnsafeCell<[f32; MAX_VEIN_COUNT]>,
-    #[serde(skip)]
+    avg_veins: Cell<[f32; MAX_VEIN_COUNT]>,
     game_desc: &'a GameDesc,
-    #[serde(skip)]
     habitable_count: &'a Cell<i32>,
 }
 
 impl<'a> StarWithPlanets<'a> {
     pub fn new(
-        star: Rc<Star<'a>>,
+        star: Rc<Star>,
         game_desc: &'a GameDesc,
         habitable_count: &'a Cell<i32>,
     ) -> Self {
@@ -52,17 +31,13 @@ impl<'a> StarWithPlanets<'a> {
             star,
             planets: UnsafeCell::new(Vec::with_capacity(6)),
             safe: Cell::new(false),
-            avg_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
-            actual_veins: UnsafeCell::new([f32::NAN; MAX_VEIN_COUNT]),
-            name: Default::default(),
+            avg_veins: Cell::new([f32::NAN; MAX_VEIN_COUNT]),
             game_desc,
             habitable_count,
         }
     }
 
-    pub fn is_safe(&self) -> bool {
-        self.safe.get()
-    }
+    pub fn is_safe(&self) -> bool { self.safe.get() }
 
     pub fn mark_safe(&self) {
         self.safe.set(true);
@@ -87,10 +62,8 @@ impl<'a> StarWithPlanets<'a> {
             return 0.0;
         }
         let index = *vein_type as usize;
-        let cached_value = unsafe {
-            let arr = &mut *self.avg_veins.get();
-            arr.get_unchecked_mut(index)
-        };
+        let mut veins = self.avg_veins.get();
+        let cached_value = &mut veins[index];
         if !cached_value.is_nan() {
             return *cached_value;
         }
@@ -117,44 +90,10 @@ impl<'a> StarWithPlanets<'a> {
                 }
             }
         }
-        *cached_value = count;
+        veins[index] = count;
+        self.avg_veins.set(veins);
         self.mark_safe();
         count
-    }
-
-    #[allow(dead_code)]
-    pub fn get_actual_vein(&self, vein_type: &VeinType) -> f32 {
-        if vein_type == &VeinType::Mag
-            && self.star.star_type != StarType::BlackHole
-            && self.star.star_type != StarType::NeutronStar
-        {
-            if !self.is_safe() {
-                self.load_planets();
-            }
-            return 0.0;
-        }
-        let index = *vein_type as usize;
-        let cached_value = unsafe {
-            let arr = &mut *self.actual_veins.get();
-            arr.get_unchecked_mut(index)
-        };
-        if !cached_value.is_nan() {
-            return *cached_value;
-        }
-        let mut count = 0;
-        for planet in self.get_planets() {
-            if !planet.can_have_vein(vein_type) {
-                continue;
-            }
-            for vein in planet.get_actual_veins() {
-                if &vein.vein_type == vein_type {
-                    count += vein.amount;
-                }
-            }
-        }
-        *cached_value = count as f32;
-        self.mark_safe();
-        count as f32
     }
 
     pub fn get_planets(&self) -> &Vec<Planet<'a>> {
@@ -390,8 +329,9 @@ impl<'a> StarWithPlanets<'a> {
                             } else {
                                 0.45_f32
                             };
-                            let orbit_skip_threshold =
-                                remaining_ratio + (1.0 - remaining_ratio) * skip_chance_base + 0.01;
+                            let orbit_skip_threshold = remaining_ratio
+                                + (1.0 - remaining_ratio) * skip_chance_base
+                                + 0.01;
                             if rand2.next_f64() < orbit_skip_threshold as f64 {
                                 broke_from_loop = true;
                                 break;

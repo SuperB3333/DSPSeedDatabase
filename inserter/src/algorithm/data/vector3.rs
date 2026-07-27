@@ -1,6 +1,4 @@
-use serde::Serialize;
-
-#[derive(Debug, PartialEq, Clone, Copy, Serialize)]
+#[derive(Debug, PartialEq, Clone, Copy)]
 pub struct Vector3(pub f64, pub f64, pub f64);
 
 impl Vector3 {
@@ -17,12 +15,6 @@ impl Vector3 {
         dx * dx + dy * dy + dz * dz
     }
 
-    #[inline]
-    pub fn distance_from(&self, pt: &Self) -> f64 {
-        self.distance_sq_from(pt).sqrt()
-    }
-
-    #[inline]
     pub fn magnitude_sq(&self) -> f64 {
         self.0 * self.0 + self.1 * self.1 + self.2 * self.2
     }
@@ -43,19 +35,6 @@ impl Vector3 {
         self
     }
 
-    #[inline]
-    pub fn dot(&self, rhs: &Vector3) -> f64 {
-        self.0 * rhs.0 + self.1 * rhs.1 + self.2 * rhs.2
-    }
-
-    #[inline]
-    pub fn slerp(lhs: &Vector3, rhs: &Vector3, percent: f64) -> Vector3 {
-        let dot = lhs.dot(rhs).clamp(-1.0, 1.0);
-        let theta = dot.acos() * percent;
-        let mut relative_vec = rhs - &(lhs * dot);
-        relative_vec.normalize();
-        &(lhs * theta.cos()) + &(&relative_vec * theta.sin())
-    }
 }
 
 impl std::ops::Add<&Vector3> for &Vector3 {

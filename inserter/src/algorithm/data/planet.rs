@@ -13,7 +13,6 @@ use super::theme_proto::{ThemeProto, THEME_PROTOS};
 use super::vector_f3::VectorF3;
 use super::vein::{ActualVein, EstimatedVein};
 use super::planet_algorithms::PlanetAlgorithms;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
@@ -21,7 +20,7 @@ use std::rc::Rc;
 #[derive(Debug)]
 pub struct Planet<'a> {
     game_desc: &'a GameDesc,
-    pub star: Rc<Star<'a>>,
+    pub star: Rc<Star>,
     pub index: usize,
     habitable_count: &'a Cell<i32>,
     pub seed: i32,
@@ -66,7 +65,7 @@ const ORBIT_RADIUS: &'static [f32] = &[
 impl<'a> Planet<'a> {
     pub fn new(
         game_desc: &'a GameDesc,
-        star: Rc<Star<'a>>,
+        star: Rc<Star>,
         index: usize,
         habitable_count: &'a Cell<i32>,
         orbit_index: usize,
@@ -226,17 +225,6 @@ impl<'a> Planet<'a> {
         }
     }
 
-    fn get_luminosity(&self) -> f32 {
-        let mut luminosity =
-            (self.star.get_light_balance_radius() / (self.get_sun_distance() + 0.01)).powf(0.6);
-        if luminosity > 1.0 {
-            luminosity = luminosity.ln() + 1.0;
-            luminosity = luminosity.ln() + 1.0;
-            luminosity = luminosity.ln() + 1.0;
-        }
-        (luminosity * 100.0).round_ties_even() / 100.0
-    }
-
     fn increment_habitable_count(&self) {
         self.habitable_count.set(self.habitable_count.get() + 1);
     }
@@ -287,7 +275,7 @@ impl<'a> Planet<'a> {
         }
     }
 
-    #[allow(dead_code)]
+    #[inline]
     pub fn is_tidal_locked(&self) -> bool {
         self.get_rotation_period() == self.get_orbital_period()
     }
@@ -538,12 +526,12 @@ impl<'a> Planet<'a> {
             }
             let mut output: Vec<EstimatedVein> = Vec::with_capacity(14);
             let mut rand1 = DspRandom::new(self.seed);
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
-            rand1.next_f64();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
+            rand1.advance();
             let theme_proto = self.get_theme();
             let mut vein_spots: Vec<i32> = (0..15_i32)
                 .map(|i| *theme_proto.vein_spot.get((i - 1) as usize).unwrap_or(&0))
@@ -639,8 +627,8 @@ impl<'a> Planet<'a> {
             for index3 in 1..15 {
                 let vein_spot_count = vein_spots[index3 as usize];
                 if vein_spot_count > 0 {
-                    let vein_type = VeinType::try_from(index3).unwrap();
-                    let mut vein = EstimatedVein::new();
+                    let vein_type: VeinType = super::enums::ORES[index3 as usize];
+                    let mut vein = EstimatedVein::default();
                     vein.vein_type = vein_type;
                     vein.min_group = vein_spot_count - 1;
                     vein.max_group = vein_spot_count + 1;
@@ -983,7 +971,7 @@ impl<'a> Planet<'a> {
                 if vein_spot_count > 1 {
                     vein_spot_count += rand2.next_i32(3) - 1;
                 }
-                let vein_type = VeinType::try_from(index3).unwrap();
+                let vein_type: VeinType = super::enums::ORES[index3 as usize];
                 let min_sq_dist = min_vein_spacing_sq
                     * (if vein_type == VeinType::Oil {
                         100_f64
@@ -1108,7 +1096,6 @@ impl<'a> Planet<'a> {
                         }
                         let surface_height = raw_data.query_height(&pos);
                         if surface_height >= self.radius {
-                            // println!("{:?},{:?},{}", pos * surface_height, vein_type, amount);
                             amount_map[*vein_type as usize] += amount;
                         }
                     }
@@ -1120,7 +1107,7 @@ impl<'a> Planet<'a> {
                 .enumerate()
                 .filter(|(_, &amount)| amount > 0)
                 .map(|(i, &amount)| ActualVein {
-                    vein_type: VeinType::try_from(i as i32).unwrap(),
+                    vein_type: super::enums::ORES[i],
                     amount,
                 })
                 .collect()
@@ -1199,31 +1186,3 @@ const SEGMENT_TABLE: [i32; 512] = [
     500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
     500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500, 500,
 ];
-
-impl Serialize for Planet<'_> {
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        let mut state = serializer.serialize_struct("Planet", 15)?;
-        state.serialize_field("index", &self.index)?;
-        state.serialize_field("orbitAround", &self.orbit_around.borrow().map(|p| p.index))?;
-        state.serialize_field("orbitIndex", &self.orbit_index)?;
-        state.serialize_field("orbitRadius", &self.get_orbital_radius())?;
-        state.serialize_field("orbitInclination", &self.get_orbit_inclination())?;
-        state.serialize_field("orbitLongitude", &self.orbit_longitude)?;
-        state.serialize_field("orbitalPeriod", &self.get_orbital_period())?;
-        state.serialize_field("obliquity", &self.get_obliquity())?;
-        state.serialize_field("rotationPeriod", &self.get_rotation_period())?;
-        state.serialize_field("type", &self.get_type())?;
-        state.serialize_field("luminosity", &self.get_luminosity())?;
-        state.serialize_field("theme", &self.get_theme())?;
-        state.serialize_field("gases", &self.get_gases())?;
-        if self.game_desc.use_actual_veins {
-            state.serialize_field("actualVeins", &self.get_actual_veins())?;
-        } else {
-            state.serialize_field("veins", &self.get_estimated_veins())?;
-        }
-        state.end()
-    }
-}
