@@ -15,22 +15,6 @@ impl VectorF2 {
         Self(0.0, 0.0)
     }
 
-    pub fn up() -> Self {
-        Self(0.0, 1.0)
-    }
-
-    pub fn down() -> Self {
-        Self(0.0, -1.0)
-    }
-
-    pub fn right() -> Self {
-        Self(1.0, 0.0)
-    }
-
-    pub fn left() -> Self {
-        Self(-1.0, 0.0)
-    }
-
     pub fn magnitude_sq(&self) -> f32 {
         self.0 * self.0 + self.1 * self.1
     }

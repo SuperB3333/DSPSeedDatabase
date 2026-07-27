@@ -13,7 +13,6 @@ use super::theme_proto::{ThemeProto, THEME_PROTOS};
 use super::vector_f3::VectorF3;
 use super::vein::{ActualVein, EstimatedVein};
 use super::planet_algorithms::PlanetAlgorithms;
-use serde::ser::{Serialize, SerializeStruct, Serializer};
 use std::cell::{Cell, OnceCell, RefCell};
 use std::f64::consts::PI;
 use std::rc::Rc;
