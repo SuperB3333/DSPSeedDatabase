@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct DspRandom {
     inext: usize,
     inextp: usize,
@@ -27,22 +27,18 @@ impl DspRandom {
 
         for _ in 1..5 {
             for i in 0..24 {
-                let lhs = seed_array[1 + i];
                 let rhs = seed_array[32 + i];
-                let mut val = lhs.wrapping_sub(rhs);
-                if val < 0 {
-                    val += i32::MAX;
+                seed_array[1 + i] = seed_array[1 + i].wrapping_sub(rhs);
+                if seed_array[1 + i].is_negative() {
+                    seed_array[1 + i] += i32::MAX;
                 }
-                seed_array[1 + i] = val;
             }
             for i in 0..31 {
-                let lhs = seed_array[25 + i];
                 let rhs = seed_array[1 + i];
-                let mut val = lhs.wrapping_sub(rhs);
-                if val < 0 {
-                    val += i32::MAX;
+                seed_array[25 + i] = seed_array[25 + i].wrapping_sub(rhs);
+                if seed_array[25 + i].is_negative() {
+                    seed_array[25 + i] += i32::MAX;
                 }
-                seed_array[25 + i] = val;
             }
         }
 
@@ -80,6 +76,21 @@ impl DspRandom {
         self.seed_array[self.inext] = num;
         (num as f64) * (1.0 / (i32::MAX as f64))
     }
+    pub fn advance(&mut self) {
+        self.inext += 1;
+        if self.inext >= 56 {
+            self.inext = 1
+        }
+        self.inextp += 1;
+        if self.inextp >= 56 {
+            self.inextp = 1
+        }
+        let mut num = self.seed_array[self.inext] - self.seed_array[self.inextp];
+        if num < 0 {
+            num += i32::MAX;
+        }
+        self.seed_array[self.inext] = num;
+    }
 
     #[inline]
     pub fn next_f64(&mut self) -> f64 {
@@ -98,11 +109,6 @@ impl DspRandom {
         } else {
             (self.sample() * (max_value as f64)) as i32
         }
-    }
-
-    #[inline]
-    pub fn next_usize(&mut self) -> usize {
-        (self.sample() * (i32::MAX as f64)) as usize
     }
 
     #[inline]

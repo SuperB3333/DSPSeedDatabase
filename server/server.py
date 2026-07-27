@@ -3,7 +3,7 @@ import asyncio, json, psycopg2
 from websockets import serve, server
 
 from parse_rule import parse as parse_rule
-from dsp_generator import generate as generate_galaxy
+
 
 DB_CONFIG = {
     "host": "localhost",
@@ -13,7 +13,8 @@ DB_CONFIG = {
 }
 
 def create_galaxy(game):
-    return generate_galaxy(game["seed"], 8, 8) #todo input star_count and resource_multiplier as well
+    return {}
+    #return generate_galaxy(game["seed"], 8, 8) #todo implement this server in rust or ditch it
 
 
 def find_stars(options):
