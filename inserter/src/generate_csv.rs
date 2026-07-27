@@ -1,7 +1,7 @@
 use crate::algorithm::data;
 use crate::algorithm::data::enums::{PlanetType, ORES};
 use crate::algorithm::data::game_desc::GameDesc;
-use crate::algorithm::worldgen::galaxy_gen::create_galaxy;
+use crate::algorithm::worldgen::generate_stars;
 
 pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::Error>> {
     let game_desc: GameDesc = GameDesc {
@@ -12,12 +12,12 @@ pub fn gen_formatted(seed: i32) -> Result<(String, String), Box<dyn std::error::
         use_actual_veins: false
     };
     let hab_count = std::cell::Cell::new(0i32);
-    let galaxy = create_galaxy(seed, &game_desc, &hab_count);
+    let galaxy = generate_stars(seed, &game_desc, &hab_count);
 
     let mut stars: String = String::with_capacity(crate::STAR_COUNT * 128);
     let mut planets: String = String::with_capacity(crate::STAR_COUNT * 256 * 5);
 
-    for solar_system in galaxy.stars {
+    for solar_system in galaxy {
         let star = solar_system.star.clone();
         let star_id = star.index as i32 + seed * 100;
 

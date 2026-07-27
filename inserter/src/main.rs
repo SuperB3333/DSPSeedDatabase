@@ -8,8 +8,8 @@ mod threads;
 
 use crate::{
     checkpoint::{load_workloads, write_checkpoints},
-    misc::{check_db_connection, get_env_interval, Timer},
     metrics::write_metrics,
+    misc::{check_db_connection, get_env_interval, Timer},
     threads::*
 };
 use anyhow::{anyhow, Context, Result};
