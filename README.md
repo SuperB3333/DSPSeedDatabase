@@ -123,7 +123,8 @@ Run the Rust tests in a container:
 docker run --rm \
   --mount type=bind,source="$PWD/inserter",target=/src,readonly \
   --workdir /src \
-  rust:1.97.0 \
+  --env CARGO_TARGET_DIR=/tmp/target \
+  rust:1.97.0@sha256:b92b8c8574f8f3b207fcb0912fb3e2de4041580b5934d90312d53938c9a038a9 \
   cargo test --release --locked
 ```
 
