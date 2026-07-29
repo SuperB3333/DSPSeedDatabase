@@ -4,8 +4,8 @@ use std::time::{Duration, Instant};
 use std::path::Path;
 use crate::{END_SEED, MAX_WORKERS, START_SEED, WORKER_THREADS};
 
-pub const COPY_PLANET: &str = "COPY planets(star_id, index, orbiting, gas_giant, sun_distance, inside_ds, satellites, theme_id, gas_h, gas_d, gas_i, tidal_lock, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT CSV)";
-pub const COPY_STAR: &str = "COPY stars(id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT CSV)";
+pub const COPY_PLANET: &str = "COPY planets(star_id, index, orbiting, gas_giant, sun_distance, inside_ds, satellites, theme_id, gas_h, gas_d, gas_i, tidal_lock, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT BINARY)";
+pub const COPY_STAR: &str = "COPY stars(id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron, ore_copper, ore_silicium, ore_titanium, ore_stone, ore_coal, ore_oil, ore_fireice, ore_diamond, ore_fractal, ore_crysrub, ore_grat, ore_bamboo, ore_mag) FROM STDIN WITH (FORMAT BINARY)";
 
 const INIT_SCRIPT: &str = include_str!("init.sql");
 pub const TRUTHY: [&str; 5] = ["1", "true", "yes", "enable", "on"];

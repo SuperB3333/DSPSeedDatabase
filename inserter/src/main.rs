@@ -125,7 +125,7 @@ fn run() -> Result<()> {
     // Prepare thread resources
     log_info!("Loading workloads...");
     let workloads = load_workloads().context("failed to load workloads")?;
-    let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
+    let (entry_sender, entry_reciever): (Sender<(Vec<u8>, Vec<u8>)>, Receiver<(Vec<u8>, Vec<u8>)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
     let mut commit_handles = vec![];

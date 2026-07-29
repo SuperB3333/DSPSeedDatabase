@@ -1,5 +1,5 @@
 from typing import Tuple, List, Any, Union
-from misc import SpectrType, StarType
+from server.misc import SpectrType, StarType
 
 from enum import Enum
 
