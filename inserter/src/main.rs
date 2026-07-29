@@ -4,6 +4,7 @@ mod generate_csv;
 mod logging;
 mod metrics;
 mod misc;
+mod test_mode;
 mod threads;
 
 use crate::{
@@ -113,6 +114,9 @@ fn run() -> Result<()> {
     if *BENCHMARK {
         log_info!("Benchmark mode enabled; database writes are disabled");
     }
+    if test_mode::enabled() {
+        log_info!("Test-only mode enabled; database transactions will be rolled back");
+    }
 
     if !check_db_connection() {
         if *BENCHMARK {
@@ -124,7 +128,11 @@ fn run() -> Result<()> {
 
     // Prepare thread resources
     log_info!("Loading workloads...");
-    let workloads = load_workloads().context("failed to load workloads")?;
+    let workloads = if test_mode::enabled() {
+        test_mode::workloads()
+    } else {
+        load_workloads().context("failed to load workloads")?
+    };
     let (entry_sender, entry_reciever): (Sender<(String, String)>, Receiver<(String, String)>) = bounded(*CHANNEL_SIZE);
 
     let mut work_handles = vec![];
@@ -149,7 +157,13 @@ fn run() -> Result<()> {
             commit_handles.push(
                 thread::Builder::new()
                     .name(format!("writer_{}", id))
-                    .spawn(move || commit_thread(thread_receiver))
+                    .spawn(move || {
+                        if test_mode::enabled() {
+                            test_mode::rollback_writer(thread_receiver)
+                        } else {
+                            commit_thread(thread_receiver)
+                        }
+                    })
                     .with_context(|| format!("failed to spawn writer thread {}", id))?,
             );
         }
