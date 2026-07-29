@@ -23,14 +23,24 @@ pub fn worker_thread(seeds: Range<i32>, send: Sender<(Vec<u8>, Vec<u8>)>, id: us
 }
 pub fn commit_thread(rec: Receiver<(Vec<u8>, Vec<u8>)>) -> Result<()> {
     let mut client = Client::connect(&*DB_STR.as_str(), NoTls)?;
+    let mut batch: Vec<(Vec<u8>, Vec<u8>)> = Vec::with_capacity(*COMMIT_COUNT);
 
-    'outer: loop {
-        let mut batch: Vec<(Vec<u8>, Vec<u8>)> = Vec::with_capacity(*COMMIT_COUNT);
-        'inner: for i in 0..*COMMIT_COUNT {
+    loop {
+        batch.clear();
+        match rec.recv() {
+            Ok(msg) => batch.push(msg),
+            Err(_) => break,
+        }
+
+        let mut disconnected = false;
+        for _ in 1..*COMMIT_COUNT {
             match rec.recv_timeout(Duration::new(1, 0)) {
                 Ok(msg) => batch.push(msg),
-                Err(RecvTimeoutError::Timeout) => panic!("commit_thread: recv_timeout reached - channel stall detected (>1s lull)"),
-                Err(RecvTimeoutError::Disconnected) => if i == 0 {break 'outer} else {break 'inner},
+                Err(RecvTimeoutError::Timeout) => break,
+                Err(RecvTimeoutError::Disconnected) => {
+                    disconnected = true;
+                    break;
+                }
             }
         }
 
@@ -59,18 +69,15 @@ pub fn commit_thread(rec: Receiver<(Vec<u8>, Vec<u8>)>) -> Result<()> {
         }
 
         txn.commit()?;
-        COMMITTED_SEEDS.fetch_add(batch.len() as i32, std::sync::atomic::Ordering::SeqCst);
+        COMMITTED_SEEDS.fetch_add(batch.len() as i32, Relaxed);
+        if disconnected {
+            break;
+        }
     }
     log_info!("Writer thread terminated");
     Ok(())
 }
 pub fn writer_sink(rec: Receiver<(Vec<u8>, Vec<u8>)>) -> Result<()> {
-    loop {
-        match rec.recv_timeout(Duration::new(1, 0)) {
-            Ok(_) => {},
-            Err(RecvTimeoutError::Timeout) => panic!("writer_sink: recv_timeout reached - channel stall detected (>1s lull)"),
-            Err(RecvTimeoutError::Disconnected) => break,
-        }
-    }
+    while rec.recv().is_ok() {}
     Ok(())
 }
