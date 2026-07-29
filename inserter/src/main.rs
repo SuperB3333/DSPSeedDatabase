@@ -43,9 +43,9 @@ lazy_static! {
     static ref START_SEED: i32 = env_int!("START_SEED", 0);
     static ref END_SEED: i32 = env_int!("END_SEED", 10_000);
     static ref WORKER_THREADS: i32 = env_int!("WORKER_THREADS", 8);
-    static ref WRITER_THREADS: i32 = env_int!("WRITER_THREADS", 4);
-    static ref COMMIT_COUNT: usize = env_int!("COMMIT_COUNT", 1000) as usize;
-    static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 1000) as usize;
+    static ref WRITER_THREADS: i32 = env_int!("WRITER_THREADS", 1);
+    static ref COMMIT_COUNT: usize = env_int!("COMMIT_COUNT", 64) as usize;
+    static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 64) as usize;
 
     static ref CHECKPOINT_FILE: String = env_str!("CHECKPOINT_FILE", "checkpoints.txt");
     static ref OVERRIDE_CHECKPOINTS: bool = env_bool!("OVERRIDE_CHECKPOINTS");
@@ -74,7 +74,6 @@ lazy_static! {
             PG_DBNAME.as_str()
         )
     };
-    static ref MAX_BUFFER: usize = *CHANNEL_SIZE + *COMMIT_COUNT * *WORKER_THREADS as usize - 2;
     static ref LOG_NAME: String = {
         let num = std::fs::read_dir(&*LOG_DIR).map(|x| {
             x.map(|x| x.unwrap().file_name().into_string().unwrap())
