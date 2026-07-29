@@ -99,21 +99,7 @@ impl PlanetAlgorithm for PlanetAlgorithm9 {
             2.0,
         ) * noise_amplitude
             + noise_offset;
-        let layer4_noise = self.noise2.noise_3d_fbm(
-            world_x * (1.0 / 400.0),
-            world_y * (1.0 / 400.0),
-            world_z * (1.0 / 400.0),
-            3,
-            0.5,
-            2.0,
-        ) * noise_amplitude
-            * noise2_amplitude
-            + noise2_offset;
-        let clamped_layer4 = if layer4_noise > 0.0 {
-            layer4_noise * 0.5
-        } else {
-            layer4_noise
-        };
+        let clamped_layer4 = clamped_layer2;
 
         let alt_height = ((layer3_noise + clamped_layer4 + 5.0) * 0.13).powf(6.0) * 24.0 - 24.0;
 
