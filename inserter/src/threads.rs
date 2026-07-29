@@ -5,7 +5,9 @@ use std::io::Write;
 use crossbeam_channel::{Receiver, RecvTimeoutError, Sender};
 use postgres::{Client, NoTls};
 use anyhow::Result;
-use crate::generate_csv::gen_formatted;
+use crate::generate_csv::{
+    gen_formatted, COPY_FOOTER, COPY_HEADER_FIELDS, COPY_SIGNATURE,
+};
 use crate::{log_info, COMMITTED_SEEDS, COMMIT_COUNT, DB_STR, PROGRESS_WORKERS};
 use crate::misc::{COPY_PLANET, COPY_STAR};
 
@@ -36,17 +38,23 @@ pub fn commit_thread(rec: Receiver<(Vec<u8>, Vec<u8>)>) -> Result<()> {
 
         {
             let mut scpy = txn.copy_in(COPY_STAR)?;
+            scpy.write_all(COPY_SIGNATURE)?;
+            scpy.write_all(COPY_HEADER_FIELDS)?;
             for (star, _) in &batch {
-                scpy.write_all(star).expect("writing to scpy failed");
+                scpy.write_all(star)?;
             }
+            scpy.write_all(COPY_FOOTER)?;
             scpy.finish()?;
         }
 
         {
             let mut pcpy = txn.copy_in(COPY_PLANET)?;
+            pcpy.write_all(COPY_SIGNATURE)?;
+            pcpy.write_all(COPY_HEADER_FIELDS)?;
             for (_, planet) in &batch {
-                pcpy.write_all(planet).expect("writing to pcpy failed");
+                pcpy.write_all(planet)?;
             }
+            pcpy.write_all(COPY_FOOTER)?;
             pcpy.finish()?;
         }
 

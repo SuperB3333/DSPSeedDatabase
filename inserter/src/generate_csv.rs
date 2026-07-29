@@ -3,23 +3,33 @@ use crate::algorithm::data::enums::{PlanetType, ORES};
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::generate_stars;
 
-const COPY_HEADER: &[u8] = b"PGCOPY\n\xFF\r\n\0\0";
-const COPY_FOOTER: &[u8] = b"\xFF\xFF";
+pub const COPY_SIGNATURE: &[u8] = b"PGCOPY\n\xFF\r\n\0";
+pub const COPY_HEADER_FIELDS: &[u8] = &[0; 8];
+pub const COPY_FOOTER: &[u8] = b"\xFF\xFF";
+
+#[inline]
+fn write_row_header(buf: &mut Vec<u8>, columns: i16) {
+    buf.extend_from_slice(&columns.to_be_bytes());
+}
 
 #[inline]
 fn write_i32(buf: &mut Vec<u8>, v: i32) {
+    buf.extend_from_slice(&4i32.to_be_bytes());
     buf.extend_from_slice(&v.to_be_bytes());
 }
 #[inline]
 fn write_i16(buf: &mut Vec<u8>, v: i16) {
+    buf.extend_from_slice(&2i32.to_be_bytes());
     buf.extend_from_slice(&v.to_be_bytes());
 }
 #[inline]
 fn write_f32(buf: &mut Vec<u8>, v: f32) {
+    buf.extend_from_slice(&4i32.to_be_bytes());
     buf.extend_from_slice(&v.to_be_bytes());
 }
 #[inline]
 fn write_bool(buf: &mut Vec<u8>, v: bool) {
+    buf.extend_from_slice(&1i32.to_be_bytes());
     buf.push(v as u8);
 }
 #[inline]
@@ -35,17 +45,8 @@ pub fn gen_formatted(seed: i32) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
     let hab_count = std::cell::Cell::new(0i32);
     let galaxy = generate_stars(seed, &game_desc, &hab_count);
 
-    let mut stars: Vec<u8> = Vec::with_capacity(crate::STAR_COUNT * 96);
+    let mut stars: Vec<u8> = Vec::with_capacity(crate::STAR_COUNT * 176);
     let mut planets: Vec<u8> = Vec::with_capacity(crate::STAR_COUNT * 256 * 5);
-
-    stars.extend_from_slice(COPY_HEADER);
-    // flags (4 bytes) + header extension length (4 bytes)
-    stars.extend_from_slice(&0i32.to_be_bytes());
-    stars.extend_from_slice(&0i32.to_be_bytes());
-
-    planets.extend_from_slice(COPY_HEADER);
-    planets.extend_from_slice(&0i32.to_be_bytes());
-    planets.extend_from_slice(&0i32.to_be_bytes());
 
     for solar_system in galaxy {
         let star = solar_system.star.clone();
@@ -53,7 +54,7 @@ pub fn gen_formatted(seed: i32) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
 
         // Stars: 22 columns
         // Columns: id, seed, start_dist, star_index, luminosity, dyson_radius, type, spectr, ore_iron..ore_mag
-        write_i16(&mut stars, 22);
+        write_row_header(&mut stars, 22);
         write_i32(&mut stars, star_id);
         write_i32(&mut stars, seed);
         write_f32(&mut stars, star.position.magnitude() as f32);
@@ -105,13 +106,17 @@ pub fn gen_formatted(seed: i32) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
             // Columns: star_id, index, orbiting, gas_giant, sun_distance, inside_ds,
             //          satellites, theme_id, gas_h, gas_d, gas_i, tidal_lock,
             //          ore_iron..ore_mag
-            write_i16(&mut planets, 26);
+            let sun_distance = planet.get_sun_distance();
+            write_row_header(&mut planets, 26);
             write_i32(&mut planets, star_id);
             write_i16(&mut planets, planet.index as i16);
             write_i16(&mut planets, orbiting);
             write_bool(&mut planets, planet.get_type() == &PlanetType::Gas);
-            write_f32(&mut planets, planet.get_orbital_radius());
-            write_bool(&mut planets, planet.get_orbital_radius() * 40000.0 < star.get_dyson_radius() as f32);
+            write_f32(&mut planets, sun_distance);
+            write_bool(
+                &mut planets,
+                sun_distance * 40000.0 < star.get_dyson_radius() as f32,
+            );
             write_i16(&mut planets, satellite_count);
             write_i16(&mut planets, planet.get_theme().id as i16);
             write_f32(&mut planets, gas_h);
@@ -141,8 +146,35 @@ pub fn gen_formatted(seed: i32) -> anyhow::Result<(Vec<u8>, Vec<u8>)> {
         }
     }
 
-    stars.extend_from_slice(COPY_FOOTER);
-    planets.extend_from_slice(COPY_FOOTER);
-
     Ok((stars, planets))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn binary_fields_include_lengths() {
+        let mut output = Vec::new();
+        write_i16(&mut output, 7);
+        write_i32(&mut output, 11);
+        write_f32(&mut output, 1.5);
+        write_bool(&mut output, true);
+        write_null_col(&mut output);
+
+        assert_eq!(
+            output,
+            [
+                0, 0, 0, 2, 0, 7, 0, 0, 0, 4, 0, 0, 0, 11, 0, 0, 0, 4, 63, 192, 0, 0, 0,
+                0, 0, 1, 1, 255, 255, 255, 255,
+            ]
+        );
+    }
+
+    #[test]
+    fn binary_copy_framing_has_protocol_lengths() {
+        assert_eq!(COPY_SIGNATURE.len(), 11);
+        assert_eq!(COPY_HEADER_FIELDS.len(), 8);
+        assert_eq!(COPY_FOOTER, [255, 255]);
+    }
 }
