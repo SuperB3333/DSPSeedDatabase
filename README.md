@@ -76,8 +76,8 @@ POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
 docker compose -f compose/compose.yaml up
 ```
 
-The standalone generator connects to PostgreSQL on the Docker host through
-`host.docker.internal`.
+The standalone generator uses Linux host networking. It connects to PostgreSQL
+at `127.0.0.1:5432`.
 
 ## Configuration
 

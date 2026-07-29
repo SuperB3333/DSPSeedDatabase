@@ -48,8 +48,8 @@ Set `POSTGRES_PORT` to use a different host port.
 
 ## Generator Only
 
-`compose/compose.yaml` starts one finite generator job. The generator connects
-to a PostgreSQL server on the Docker host.
+`compose/compose.yaml` starts one finite generator job. The generator uses Linux
+host networking. It connects to PostgreSQL at `127.0.0.1:5432`.
 
 Set the PostgreSQL password:
 

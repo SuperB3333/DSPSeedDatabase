@@ -10,9 +10,7 @@ services:
       PG_PASS: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       PG_PORT: 5432
       PG_DBNAME: dsp
-      PG_NETLOC: host.docker.internal
+      PG_NETLOC: 127.0.0.1
       LOG_LEVEL: ${LOG_LEVEL:-info}
-    network_mode: bridge
+    network_mode: host
     restart: "no"
-    extra_hosts:
-      - "host.docker.internal:host-gateway"
