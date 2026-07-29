@@ -87,13 +87,12 @@ impl PlanetAlgorithm for PlanetAlgorithm6 {
             0.0
         };
 
-        let detail_noise = self
-            .noise2
-            .noise_3d_fbm(xin * 1.5, yin * 1.5, zin * 1.5, 2, 0.5, 2.0)
-            .abs();
-
         let mut terrain_height = height_base - crack_intensity * 1.2 * fluid_clamped;
         if terrain_height >= 0.0 {
+            let detail_noise = self
+                .noise2
+                .noise_3d_fbm(xin * 1.5, yin * 1.5, zin * 1.5, 2, 0.5, 2.0)
+                .abs();
             terrain_height += cell_noise * 0.25 + detail_noise * 0.6;
         }
 
