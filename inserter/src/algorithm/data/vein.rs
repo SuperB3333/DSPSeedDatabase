@@ -10,7 +10,23 @@ pub struct EstimatedVein {
     pub min_amount: i32, // times 4e-5 for oil
     pub max_amount: i32,
 }
-
+impl EstimatedVein {
+    pub fn new() -> Self {
+        Default::default()
+    }
+    pub fn min(&self) -> i32 {
+        self.min_group * self.min_amount * self.min_patch
+    }
+    pub fn max(&self) -> i32 {
+        self.max_group * self.max_amount * self.max_patch
+    }
+    pub fn estimate(&self) -> i64 {
+        (self.min_group + self.max_group) as i64
+            * (self.min_amount + self.max_amount) as i64
+            * (self.min_patch + self.max_patch) as i64
+            / 8i64
+    }
+}
 impl Default for EstimatedVein {
     fn default() -> Self {
         Self {
