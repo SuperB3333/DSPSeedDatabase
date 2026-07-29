@@ -210,7 +210,7 @@ dependencies = [
 
 [[package]]
 name = "dsp_seed_finder"
-version = "0.1.0"
+version = "0.7.0"
 dependencies = [
  "anyhow",
  "crossbeam-channel",

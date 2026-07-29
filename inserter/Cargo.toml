@@ -1,6 +1,6 @@
 [package]
 name = "dsp_seed_finder"
-version = "0.1.0"
+version = "0.7.0"
 edition = "2021"
 
 [profile.release]
@@ -24,4 +24,3 @@ crossterm = "0.29.0"
 anyhow = "1.0.103"
 lazy_static = "1.5.0"
 itertools = "0.15.0"
-

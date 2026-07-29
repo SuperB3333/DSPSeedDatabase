@@ -2,8 +2,6 @@ use crate::algorithm::data::birth_points::BirthPoints;
 use crate::algorithm::data::game_desc::GameDesc;
 use crate::algorithm::data::planet_raw_data::PlanetRawData;
 use crate::algorithm::data::vector_f2::VectorF2;
-use std::convert::TryFrom;
-
 use super::enums::{OceanType, PlanetType, SpectrType, StarType, ThemeDistribute, VeinType};
 use super::pose::Pose;
 use super::quaternion::Quaternion;
