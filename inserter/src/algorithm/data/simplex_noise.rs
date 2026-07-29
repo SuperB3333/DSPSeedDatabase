@@ -25,8 +25,8 @@ const G3: f64 = 1.0 / 6.0;
 
 /// SimplexNoise implementation with DSP-specific permutation.
 pub struct SimplexNoise {
-    perm: [i16; 512],
-    perm_mod12: [i16; 512],
+    perm: [u8; 512],
+    perm_mod12: [u8; 512],
 }
 
 impl SimplexNoise {
@@ -42,7 +42,7 @@ impl SimplexNoise {
 
     /// Initialize with seed-shuffled permutation (using DspRandom).
     fn init_member_seed(&mut self, seed: i32) {
-        let mut p: [i16; 256] = std::array::from_fn(|i| i as i16);
+        let mut p: [u8; 256] = std::array::from_fn(|i| i as u8);
 
         // Only shuffle when seed != 0 (matching C# behavior where seed 0 might be special)
         // Actually the C# always shuffles. Let's shuffle based on seed.
@@ -54,10 +54,12 @@ impl SimplexNoise {
             p[i2] = num;
         }
 
-        for i in 0..512 {
-            self.perm[i] = p[i & 255];
+        for (i, value) in p.into_iter().enumerate() {
+            self.perm[i] = value;
             self.perm_mod12[i] = self.perm[i] % 12;
         }
+        self.perm.copy_within(..256, 256);
+        self.perm_mod12.copy_within(..256, 256);
     }
 
     /// 3D simplex noise.
