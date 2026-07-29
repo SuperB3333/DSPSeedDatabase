@@ -64,7 +64,11 @@ lazy_static! {
     static ref PG_DBNAME: String = env_str!("PG_DBNAME", "dsp");
 
     static ref CP_INTERVAL: Option<Duration> = get_env_interval("CHECKPOINT_INTERVAL");
-    static ref LOG_INTERVAL: Option<Duration> = get_env_interval("LOG_INTERVAL");
+    static ref LOG_INTERVAL: Option<Duration> = if std::env::var_os("LOG_INTERVAL").is_some() {
+        get_env_interval("LOG_INTERVAL")
+    } else {
+        None
+    };
 
 
     static ref DB_STR: String = {

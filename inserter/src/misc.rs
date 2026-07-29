@@ -193,6 +193,7 @@ pub fn validate_config() -> anyhow::Result<()> {
 }
 
 pub fn write_log() -> anyhow::Result<()> {
+    std::fs::create_dir_all(&*crate::LOG_DIR)?;
     let log_path = Path::new(&*crate::LOG_DIR).join(&*crate::LOG_NAME);
 
     if !log_path.exists() {
