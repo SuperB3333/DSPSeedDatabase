@@ -25,4 +25,6 @@ def query_status(qid: str):
     return "true" if glob_return_dict[qid] is not None else "false"
 @app.post("/get_result")
 def query_result(qid: str):
-    return list(glob_return_dict[qid])
+    res = list(glob_return_dict[qid])
+    glob_return_dict[qid] = None
+    return res

@@ -1,7 +1,7 @@
 use crate::algorithm::data;
 use crate::algorithm::data::enums::{PlanetType, ORES};
 use crate::algorithm::data::game_desc::GameDesc;
-use crate::algorithm::worldgen::generate_stars;
+use crate::algorithm::generate_stars;
 
 const COPY_HEADER: &[u8] = b"PGCOPY\n\xFF\r\n\0\0";
 const COPY_FOOTER: &[u8] = b"\xFF\xFF";

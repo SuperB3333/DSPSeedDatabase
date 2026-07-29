@@ -1,5 +1,4 @@
 pub mod data;
-pub mod worldgen;
 
 use data::{
     enums::{SpectrType, StarType},
