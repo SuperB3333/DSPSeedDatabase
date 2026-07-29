@@ -13,3 +13,4 @@ Dyson Sphere Program (DSP) seed database for generating, storing, and querying g
 - **[Gotcha]** `server/server.py` references a `dsp_generator` module not found in the root file list, possibly a missing component or name mismatch. (Source: server/server.py)
 - **[Tooling]** Rust backend includes a TUI-style progress monitor using `crossterm`. (Source: src/metrics.rs)
 - **[Pattern]** Rule-to-SQL conversion is implemented via a hierarchical class structure in `rules.py`. (Source: rules.py)
+- **[Gotcha]** The standalone SeedFinder must use Docker's built-in `bridge` network for `host.docker.internal:host-gateway`; on a user-defined bridge, the default `docker0` gateway is unreachable and PostgreSQL's published port times out. (Source: compose/compose.yaml, disposable Docker connectivity probes)

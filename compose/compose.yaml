@@ -1,13 +1,17 @@
 services:
   seedfinder:
-    image: toti330/dsp_seed_finder:0.4.0
+    image: toti330/dsp_seed_finder:0.6.0
     container_name: seedfinder
     environment:
-      END_SEED: 100000 # max is 10,000,000 (10m)
+      END_SEED: 1000 # max is 10,000,000 (10m)
       NO_TUI: 1
       PG_USER: postgres
       PG_PASS: rootpassword # Default values
       PG_PORT: 5432
       PG_DBNAME: dsp
       PG_NETLOC: host.docker.internal
+      LOG_LEVEL: debug
+    network_mode: bridge
     restart: on-failure
+    extra_hosts:
+      - "host.docker.internal:host-gateway"

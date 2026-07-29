@@ -6,7 +6,9 @@ individually.
 - **compose.yaml**
 Runs only the `seedfinder` container. It is configured to connect to an
 individually managed PostgreSQL instance at `host.docker.internal:5432` using
-database `dsp`, user `postgres`, and password `rootpassword`.
+database `dsp`, user `postgres`, and password `rootpassword`. It uses Docker's
+built-in `bridge` network so `host-gateway` reaches PostgreSQL's published port
+without joining PostgreSQL's Compose network.
 
 - **compose.postgres.yaml**
 Runs PostgreSQL and PostgREST. PostgreSQL is available for individual connections from
