@@ -5,33 +5,66 @@ use crate::algorithm::data::planet_grid::{
 };
 
 use super::vector_f3::VectorF3;
+use std::cell::RefCell;
 use std::f64::consts::PI;
+
+const VALID_WORDS: usize = DATA_LENGTH.div_ceil(u64::BITS as usize);
+
+#[derive(Default)]
+struct TerrainCache {
+    heights: Vec<u16>,
+    valid: Vec<u64>,
+    touched: Vec<usize>,
+}
+
+impl TerrainCache {
+    fn new() -> Self {
+        Self {
+            heights: vec![0; DATA_LENGTH],
+            valid: vec![0; VALID_WORDS],
+            touched: Vec::new(),
+        }
+    }
+
+    fn clear(&mut self) {
+        for index in self.touched.drain(..) {
+            self.valid[index / u64::BITS as usize] &= !(1 << (index % u64::BITS as usize));
+        }
+    }
+}
+
+thread_local! {
+    static TERRAIN_CACHE_POOL: RefCell<Vec<TerrainCache>> = const { RefCell::new(Vec::new()) };
+}
 
 pub struct PlanetRawData {
     grid: &'static PlanetGrid,
     algo: Box<dyn PlanetAlgorithm>,
-    cache: Vec<f32>,
+    cache: TerrainCache,
 }
 
 impl PlanetRawData {
     pub fn new(planet: &Planet) -> Self {
+        let cache = TERRAIN_CACHE_POOL
+            .with(|pool| pool.borrow_mut().pop())
+            .unwrap_or_else(TerrainCache::new);
         Self {
             grid: get_planet_grid(),
             algo: create_and_prepare_algo(planet),
-            cache: vec![f32::NAN; DATA_LENGTH],
+            cache,
         }
     }
 
     #[inline]
     fn get_height(&mut self, index: usize) -> f32 {
-        let val = self.cache[index];
-        if val.is_nan() {
-            let h = (self.algo.get_height(index) * 100.0) as u16 as f32;
-            self.cache[index] = h;
-            h
-        } else {
-            val
+        let word = index / u64::BITS as usize;
+        let mask = 1 << (index % u64::BITS as usize);
+        if self.cache.valid[word] & mask == 0 {
+            self.cache.heights[index] = (self.algo.get_height(index) * 100.0) as u16;
+            self.cache.valid[word] |= mask;
+            self.cache.touched.push(index);
         }
+        self.cache.heights[index] as f32
     }
 
     pub fn query_height_normalized(&mut self, vpos_normalized: &VectorF3) -> f32 {
@@ -71,5 +104,13 @@ impl PlanetRawData {
         let mut vpos = *vpos;
         vpos.normalize();
         self.query_height_normalized(&vpos)
+    }
+}
+
+impl Drop for PlanetRawData {
+    fn drop(&mut self) {
+        self.cache.clear();
+        let cache = std::mem::take(&mut self.cache);
+        TERRAIN_CACHE_POOL.with(|pool| pool.borrow_mut().push(cache));
     }
 }
