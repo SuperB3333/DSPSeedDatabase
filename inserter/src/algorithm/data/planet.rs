@@ -989,15 +989,19 @@ impl<'a> Planet<'a> {
                             normal_dir += birth_point;
                         }
                         normal_dir.normalize();
-                        if self.can_place_vein(algo_id, &vein_type, &normal_dir, &mut raw_data) {
-                            let not_too_close_to_other_vein =
-                                vein_vectors.iter().all(|(_, pos, _)| {
-                                    (pos.distance_sq_from(&normal_dir) as f64) >= min_sq_dist
-                                });
-                            if not_too_close_to_other_vein {
-                                vein_vectors.push((vein_type, normal_dir, false));
-                                break;
-                            }
+                        let not_too_close_to_other_vein = vein_vectors.iter().all(|(_, pos, _)| {
+                            (pos.distance_sq_from(&normal_dir) as f64) >= min_sq_dist
+                        });
+                        if not_too_close_to_other_vein
+                            && self.can_place_vein(
+                                algo_id,
+                                &vein_type,
+                                &normal_dir,
+                                &mut raw_data,
+                            )
+                        {
+                            vein_vectors.push((vein_type, normal_dir, false));
+                            break;
                         }
                     }
                     if vein_vectors.len() >= 512 {
