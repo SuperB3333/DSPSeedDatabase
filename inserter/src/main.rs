@@ -42,7 +42,10 @@ static PROGRESS_WORKERS: [AtomicI32; MAX_WORKERS] = [const { AtomicI32::new(0) }
 lazy_static! {
     static ref START_SEED: i32 = env_int!("START_SEED", 0);
     static ref END_SEED: i32 = env_int!("END_SEED", 10_000);
-    static ref WORKER_THREADS: i32 = env_int!("WORKER_THREADS", 8);
+    static ref WORKER_THREADS: i32 = std::env::var("WORKER_THREADS")
+        .ok()
+        .and_then(|value| value.parse().ok())
+        .unwrap_or_else(|| (*END_SEED - *START_SEED).clamp(1, MAX_WORKERS as i32));
     static ref WRITER_THREADS: i32 = env_int!("WRITER_THREADS", 1);
     static ref COMMIT_COUNT: usize = env_int!("COMMIT_COUNT", 64) as usize;
     static ref CHANNEL_SIZE: usize = env_int!("CHANNEL_SIZE", 64) as usize;
