@@ -1,0 +1,171 @@
+{
+  "schema_version": 1,
+  "date": "2026-07-29",
+  "baseline_commit": "c0ed162ddf820b8d4ada0127b597cd64a8e35a88",
+  "platform": "linux/amd64",
+  "rust_version": "1.97.0",
+  "system": {
+    "cpu": "Intel Xeon Platinum 8370C at 2.80 GHz",
+    "logical_processors": 2,
+    "physical_cores": 1,
+    "memory_gib": 7.7,
+    "kernel": "Linux 6.17.0-1021-azure",
+    "docker_version": "29.6.1"
+  },
+  "profile": {
+    "baseline_sample_percent": {
+      "simplex_noise_3d": 45.39,
+      "page_fault_handling": 15.55,
+      "terrain_height_interpolation": 10.56
+    },
+    "optimized_sample_percent": {
+      "simplex_noise_3d": 56.2,
+      "terrain_height_interpolation": 10.98
+    },
+    "baseline_100_seed_minor_page_faults": 3319980,
+    "pooled_cache_100_seed_minor_page_faults": 7619,
+    "hardware_counters_supported": false
+  },
+  "experiments": [
+    {
+      "name": "pooled-terrain-cache",
+      "decision": "keep",
+      "median_change_percent": 27.1381,
+      "bootstrap_95_percent_ci": [16.5794, 31.3509],
+      "output_equal": true
+    },
+    {
+      "name": "spacing-before-terrain",
+      "decision": "keep",
+      "median_change_percent": 5.1378,
+      "bootstrap_95_percent_ci": [2.6168, 8.3876],
+      "output_equal": true
+    },
+    {
+      "name": "compact-permutations",
+      "decision": "keep",
+      "median_change_percent": 2.9471,
+      "bootstrap_95_percent_ci": [0.9125, 7.5649],
+      "output_equal": true
+    },
+    {
+      "name": "fused-algorithm-12-noise",
+      "decision": "revert",
+      "median_change_percent": 0.1962,
+      "bootstrap_95_percent_ci": [-4.7622, 0.7467],
+      "output_equal": true
+    },
+    {
+      "name": "reuse-algorithm-9-noise",
+      "decision": "keep",
+      "median_change_percent": 0.7536,
+      "bootstrap_95_percent_ci": [-5.1496, 4.9991],
+      "median_user_cpu_change_percent": 0.9846,
+      "output_equal": true
+    },
+    {
+      "name": "conditional-algorithm-10-noise",
+      "decision": "revert",
+      "median_change_percent": -0.9184,
+      "bootstrap_95_percent_ci": [-2.9559, 4.2627],
+      "output_equal": true
+    },
+    {
+      "name": "conditional-algorithm-5-and-6-noise",
+      "decision": "keep",
+      "median_change_percent": 0.3772,
+      "bootstrap_95_percent_ci": [-1.6933, 7.9741],
+      "median_user_cpu_change_percent": 1.1884,
+      "output_equal": true
+    },
+    {
+      "name": "partial-algorithm-4-distance",
+      "decision": "revert",
+      "median_change_percent": -1.8394,
+      "bootstrap_95_percent_ci": [-8.9872, -0.1795],
+      "output_equal": true
+    },
+    {
+      "name": "blocking-writer-input",
+      "decision": "keep-for-reliability",
+      "median_change_percent": -1.4859,
+      "bootstrap_95_percent_ci": [-6.7233, 0.8698]
+    },
+    {
+      "name": "small-pipeline-defaults",
+      "decision": "keep",
+      "baseline_seeds_per_second": 6.5683,
+      "candidate_seeds_per_second": 6.5949,
+      "seed_count": 500
+    },
+    {
+      "name": "adaptive-worker-count",
+      "decision": "keep",
+      "baseline_workers": 8,
+      "candidate_workers": 32,
+      "baseline_seeds_per_second": 5.9618,
+      "candidate_seeds_per_second": 6.5949,
+      "seed_count": 500
+    },
+    {
+      "name": "final-one-worker-comparison",
+      "decision": "keep",
+      "median_change_percent": 37.9963,
+      "bootstrap_95_percent_ci": [31.9682, 39.4965],
+      "seed_count": 100
+    }
+  ],
+  "database_scaling": {
+    "seed_count": 500,
+    "postgres_version": "16",
+    "writer_count": 1,
+    "commit_count": 64,
+    "samples": [
+      {"workers": 2, "seeds_per_second": 4.538395, "max_rss_kib": 14432},
+      {"workers": 8, "seeds_per_second": 5.961821, "max_rss_kib": 18008},
+      {"workers": 16, "seeds_per_second": 6.179457, "max_rss_kib": 23876},
+      {"workers": 32, "seeds_per_second": 6.594936, "max_rss_kib": 33808}
+    ],
+    "four_writer_seeds_per_second": 6.589842,
+    "baseline_scale_status": "failed after writer sink timeout"
+  },
+  "correctness": {
+    "pre_copy_seed_range": [0, 100],
+    "pre_copy_sha256": "3f26eb1b456d5a7b71f40a98ab03e0472b05e41cc31e65740dca002da6afa7d6",
+    "copy_acceptance": {
+      "seed_count": 10,
+      "batch_size": 3,
+      "star_rows": 640,
+      "planet_rows": 2446
+    },
+    "final_repeat": {
+      "seed_range": [0, 1000],
+      "runs": 2,
+      "bytes": 50069759,
+      "sha256": "d188c78a555c95f2188db893a8c9890ec2a50848c9b8826f6e72c7104b3b7acd"
+    },
+    "database_worker_comparison": {
+      "seed_range": [0, 500],
+      "worker_counts": [8, 32],
+      "star_rows": 32000,
+      "planet_rows": 122266,
+      "star_hash": "51ddf9bbe5e3a6dbf17dfa5e65f89621",
+      "planet_hash": "32096b2ffd8476930b437c1b9711cb50"
+    },
+    "gnu_and_musl_planet_hashes_equal": false
+  },
+  "not_tested": [
+    {
+      "name": "unsafe-fast-math-or-simd",
+      "reason": "Can change terrain comparisons and random-number consumption"
+    },
+    {
+      "name": "profile-guided-optimization",
+      "reason": "Binds code layout to one training corpus and hardware profile"
+    },
+    {
+      "name": "dynamic-seed-queue",
+      "reason": "Requires a new checkpoint protocol for in-progress seeds"
+    }
+  ]
+}

@@ -1,74 +1,194 @@
 # DSP Seed Finder
 
-A high-performance pipeline for generating, indexing, and searching Dyson Sphere Program (DSP) galaxy seeds. It replaces the trial-and-error of seed hunting with a multi-threaded Rust generator and a flexible Python-based SQL search engine.
+DSP Seed Finder generates galaxy data for Dyson Sphere Program (DSP). A Rust
+program writes the data to PostgreSQL. PostgREST supplies a read-only
+application programming interface (API) that uses Hypertext Transfer Protocol
+(HTTP).
 
-## Core Capabilities
+## Services
 
-- **High-Speed Generation:** Multi-threaded Rust implementation of the DSP galaxy generation algorithm, capable of processing thousands of seeds per second.
-- **SQL-Powered Search:** Exports seed data to PostgreSQL for complex queries that the game's UI cannot perform (e.g., "Find a seed with 6 O-stars and a tidally locked planet inside the Dyson radius").
-- **Resume-Safe:** Atomic checkpointing ensures that long-running generation jobs (e.g., processing 10 million seeds) can be paused and resumed without data corruption or duplication.
-- **Flexible Scoring:** A Python scoring engine ranks seeds based on weighted metrics like total luminosity, rare ore availability, or "inside-sphere" planet counts.
+- `seedfinder` generates stars, planets, gases, and vein amounts.
+- `postgres` stores the generated data.
+- `api` gives read-only access to the `stars` and `planets` tables.
 
-## Quick Start
+The generator processes the configured seed range. The generator then stops.
 
-### 1. Infrastructure
-The fastest way to get the database ready is via Docker Compose:
+## Requirements
+
+Install these tools:
+
+- Docker Engine
+- Docker Compose
+- `curl` for the API check
+
+The release platform is Linux on a 64-bit x86 processor.
+
+## Start The Full Stack
+
+1. Set a PostgreSQL password.
+
+   ```bash
+   export POSTGRES_PASSWORD='replace-this-password'
+   ```
+
+2. Start the full stack with the default 100-seed range.
+
+   ```bash
+   docker compose -f compose/compose_full.yaml up -d --wait
+   ```
+
+3. Make sure that the generator exit code is `0`.
+
+   ```bash
+   docker inspect seedfinder --format '{{.State.ExitCode}}'
+   ```
+
+4. Read one star from the API.
+
+   ```bash
+   curl --fail 'http://127.0.0.1:3000/stars?select=seed,star_index&limit=1'
+   ```
+
+Set `END_SEED` to the first seed that the generator does not process.
+
 ```bash
-docker compose -f compose/compose.postgres.yaml up -d
+END_SEED=1000 docker compose -f compose/compose_full.yaml up -d --wait
 ```
 
-### 2. Schema Setup
-Initialize the database schema (requires `psycopg2`):
+## Start Services Independently
+
+Set the PostgreSQL password:
+
 ```bash
-python3 create_database.py
+export POSTGRES_PASSWORD='replace-this-password'
 ```
 
-### 3. Generate Seeds
-Build and run the generator. This will populate the database with seeds in the specified range.
+Start PostgreSQL:
+
 ```bash
-# Configuration via environment variables
-START_SEED=0 END_SEED=100000 WORKER_THREADS=16 cargo run --release
+docker compose -f compose/compose.postgres.yaml up -d --wait
 ```
 
-### 4. Search & Score
-Find the best seeds based on your own criteria:
+Start the generator after the PostgreSQL health check passes:
+
 ```bash
-# Example: Rank seeds by O-star luminosity and Silicon availability
-python3 score_seeds.py --weight luminosity=1.5 --weight ore_silicium=1.0 --top 10
+POSTGRES_PASSWORD="$POSTGRES_PASSWORD" \
+docker compose -f compose/compose.yaml up
 ```
 
-## Architecture
-
-### The Pipeline
-1.  **Generation (`src/`)**: A Rust crate that replicates the game's internal generation logic. It bypasses all rendering/UI and uses `crossbeam-channel` to pipe generated CSV data from worker threads to database writer threads.
-2.  **Ingestion**: Uses PostgreSQL `COPY FROM STDIN` for maximum throughput. Tables are created as `UNLOGGED` by default to minimize Write-Ahead Log (WAL) overhead.
-3.  **Search (`rules.py`, `score_seeds.py`)**: A Python layer that compiles high-level search criteria into optimized SQL.
-
-### Database Schema
-Data is split into two primary tables:
-- **`stars`**: High-level system data (luminosity, type, star-level aggregated ores).
-- **`planets`**: Detailed planet-level data (vein counts, tidal locking, orbital radius, gas rates).
-
-**Note on Sentinels:** To handle the variance in planet types, the database uses `-1` as a sentinel value for ores that do not exist on a given planet (e.g., iron on a gas giant). The scoring engine uses `GREATEST(estimate, 0)` to ensure these sentinels never subtract from a seed's score.
+The standalone generator connects to PostgreSQL on the Docker host through
+`host.docker.internal`.
 
 ## Configuration
 
-The Rust generator is configured via environment variables:
-- `START_SEED` / `END_SEED`: The range of seeds to process.
-- `WORKER_THREADS`: Number of threads generating galaxy data.
-- `WRITER_THREADS`: Number of threads pushing data to Postgres.
-- `CHECKPOINT_FILE`: Path to the progress tracking file (default: `checkpoints.txt`).
-- `BENCHMARK=1`: Disables DB writes to test pure generation throughput.
+The generator reads these environment variables:
 
-## Sharp Edges
+| Variable | Executable default | Function |
+| --- | ---: | --- |
+| `START_SEED` | `0` | Set the first seed. |
+| `END_SEED` | `10000` | Set the first seed that the generator does not process. |
+| `WORKER_THREADS` | Adaptive | Override the generator worker count. |
+| `WRITER_THREADS` | `1` | Set the PostgreSQL writer count. |
+| `COMMIT_COUNT` | `64` | Set the maximum seeds in one transaction. |
+| `CHANNEL_SIZE` | `64` | Set the completed-seed queue capacity. |
+| `BENCHMARK` | Off | Discard generated output. |
+| `NO_TUI` | Off | Disable the terminal user interface (TUI). |
+| `PG_NETLOC` | `localhost` | Set the PostgreSQL host. |
+| `PG_PORT` | `5432` | Set the PostgreSQL port. |
+| `PG_DBNAME` | `dsp` | Set the PostgreSQL database. |
+| `PG_USER` | `postgres` | Set the PostgreSQL user. |
+| `PG_PASS` | `rootpassword` | Set the PostgreSQL password. |
 
-- **Checkpoint Invariants:** The generator bails out if it detects a mismatch between the current config and an existing `checkpoints.txt`. If you change your seed range or worker count, you must delete the old checkpoint file.
-- **UNLOGGED Tables:** For speed, tables are `UNLOGGED`. If the database crashes, data may be lost. Run `ALTER TABLE ... SET LOGGED` if you require durability.
-- **Database Load:** The generator can easily saturate a standard Postgres installation. If you see "channel stall" warnings, try increasing `COMMIT_COUNT` or decreasing `WORKER_THREADS`.
+The adaptive worker count is the smaller value of the seed count and 32. Set
+`WORKER_THREADS` to select a different worker count.
 
-## Making Your First Change
+The full-stack Compose file sets `END_SEED` to `100`. The standalone generator
+Compose file sets `END_SEED` to `1000`. Each generator Compose file enables
+`NO_TUI`.
 
-The shortest path to a meaningful change is adding a new metric to the scoring engine:
-1.  Open `score_seeds.py`.
-2.  Add a new entry to the `_build_metrics` dictionary (e.g., a filter for specific planet themes).
-3.  Run the script with your new metric: `--weight your_metric=1.0`.
+## Build And Test
+
+Build the release image:
+
+```bash
+docker build \
+  --build-arg IMAGE_VERSION=0.7.0 \
+  --build-arg VCS_REF="$(git rev-parse HEAD)" \
+  --tag dsp-seed-finder:0.7.0 .
+```
+
+Run the Rust tests in a container:
+
+```bash
+docker run --rm \
+  --mount type=bind,source="$PWD/inserter",target=/src,readonly \
+  --workdir /src \
+  rust:1.97.0 \
+  cargo test --release --locked
+```
+
+## Performance
+
+The controlled test used one worker. The test measured the paired change in
+throughput. The median gain was 38.0% for version 0.7.0. Median throughput
+increased from 2.649 seeds/s to 3.668 seeds/s. The bootstrap interval was 32.0%
+to 39.5% at 95% confidence.
+
+For the method, raw data, discarded experiments, and scaling results, refer to
+[`docs/performance.md`](docs/performance.md).
+
+## Determinism
+
+A determinism test ran the same version 0.7.0 executable two times. The test
+processed seeds from 0 to 999. The `cmp` tool found no different bytes. Each
+file contained 50,069,759 bytes.
+
+```text
+d188c78a555c95f2188db893a8c9890ec2a50848c9b8826f6e72c7104b3b7acd
+```
+
+The value is a 256-bit Secure Hash Algorithm (SHA-256) digest. The result is
+valid for the tested executable. GNU and musl math libraries can give different
+planet values.
+
+## Data Storage
+
+The database uses PostgreSQL `UNLOGGED` tables. PostgreSQL does not restore data
+from these tables after a crash. Use logged tables if crash recovery is
+necessary.
+
+The database files are in `data/`.
+
+1. Make sure that the current directory is the repository root.
+
+   ```bash
+   test -f Dockerfile
+   ```
+
+2. Stop all services.
+
+   ```bash
+   docker compose -f compose/compose_full.yaml down --remove-orphans
+   ```
+
+3. Remove the database directory.
+
+   ```bash
+   sudo rm -rf -- data
+   ```
+
+4. Create an empty database directory.
+
+   ```bash
+   mkdir data
+   ```
+
+## Release Image
+
+The release image is `toti330/dsp_seed_finder:0.7.0`.
+
+Examine the remote image:
+
+```bash
+docker buildx imagetools inspect toti330/dsp_seed_finder:0.7.0
+```

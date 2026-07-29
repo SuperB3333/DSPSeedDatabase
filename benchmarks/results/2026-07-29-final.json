@@ -1,0 +1,223 @@
+{
+  "schema_version": 1,
+  "source": {
+    "baseline_commit": "c0ed162ddf820b8d4ada0127b597cd64a8e35a88",
+    "optimized_behavior_commit": "1b72146fb52ecf0ab01e4f1b1ff0a6fb05637983",
+    "rust_version": "1.97.0",
+    "target": "x86_64-unknown-linux-musl"
+  },
+  "created_utc": "2026-07-29T18:53:03.345430+00:00",
+  "host": {
+    "platform": "Linux-6.17.0-1021-azure-x86_64-with-glibc2.39",
+    "processor_count": 2,
+    "cpu_set": "0"
+  },
+  "workload": {
+    "start_seed": 0,
+    "end_seed": 100,
+    "seed_count": 100,
+    "workers": 1,
+    "writer_sinks": 1,
+    "channel_size": 64
+  },
+  "executables": {
+    "baseline": {
+      "path": "/tmp/opencode/dsp-optimization/baseline/dsp_seed_finder",
+      "sha256": "74e96f68daac80a35d4296fd06204d8e4c393785d493c5414ff5679d56f5747c"
+    },
+    "optimized-0.7.0": {
+      "path": "/tmp/opencode/dsp-optimization/target-final/x86_64-unknown-linux-musl/release/dsp_seed_finder",
+      "sha256": "b1d3c5d7216848b9fd73cccc36d6e9142574d8ac5d9b0e1e4dbeed4fcc83a31a"
+    }
+  },
+  "results": [
+    {
+      "sequence": 0,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 2.629865,
+      "wall_seconds": 38.02,
+      "user_seconds": 28.65,
+      "system_seconds": 6.75,
+      "max_rss_kib": 5980,
+      "minor_page_faults": 3320208,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 486,
+      "involuntary_context_switches": 20167
+    },
+    {
+      "sequence": 1,
+      "variant": "optimized-0.7.0",
+      "throughput_seeds_per_second": 3.669744,
+      "wall_seconds": 27.25,
+      "user_seconds": 25.71,
+      "system_seconds": 0.13,
+      "max_rss_kib": 5696,
+      "minor_page_faults": 7036,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 377,
+      "involuntary_context_switches": 7864
+    },
+    {
+      "sequence": 2,
+      "variant": "optimized-0.7.0",
+      "throughput_seeds_per_second": 3.666149,
+      "wall_seconds": 27.28,
+      "user_seconds": 25.73,
+      "system_seconds": 0.1,
+      "max_rss_kib": 5632,
+      "minor_page_faults": 7036,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 377,
+      "involuntary_context_switches": 6891
+    },
+    {
+      "sequence": 3,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 2.648636,
+      "wall_seconds": 37.75,
+      "user_seconds": 28.68,
+      "system_seconds": 6.65,
+      "max_rss_kib": 5952,
+      "minor_page_faults": 3320918,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 485,
+      "involuntary_context_switches": 19807
+    },
+    {
+      "sequence": 4,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 2.648638,
+      "wall_seconds": 37.75,
+      "user_seconds": 28.53,
+      "system_seconds": 6.75,
+      "max_rss_kib": 5964,
+      "minor_page_faults": 3320968,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 482,
+      "involuntary_context_switches": 19130
+    },
+    {
+      "sequence": 5,
+      "variant": "optimized-0.7.0",
+      "throughput_seeds_per_second": 3.643891,
+      "wall_seconds": 27.44,
+      "user_seconds": 25.64,
+      "system_seconds": 0.1,
+      "max_rss_kib": 5676,
+      "minor_page_faults": 6988,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 381,
+      "involuntary_context_switches": 8187
+    },
+    {
+      "sequence": 6,
+      "variant": "optimized-0.7.0",
+      "throughput_seeds_per_second": 3.68346,
+      "wall_seconds": 27.15,
+      "user_seconds": 25.64,
+      "system_seconds": 0.11,
+      "max_rss_kib": 5632,
+      "minor_page_faults": 6860,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 380,
+      "involuntary_context_switches": 7356
+    },
+    {
+      "sequence": 7,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 2.680183,
+      "wall_seconds": 37.31,
+      "user_seconds": 28.66,
+      "system_seconds": 6.75,
+      "max_rss_kib": 5976,
+      "minor_page_faults": 3320980,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 478,
+      "involuntary_context_switches": 24800
+    },
+    {
+      "sequence": 8,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 2.622841,
+      "wall_seconds": 38.13,
+      "user_seconds": 28.66,
+      "system_seconds": 6.71,
+      "max_rss_kib": 6008,
+      "minor_page_faults": 3320999,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 489,
+      "involuntary_context_switches": 22307
+    },
+    {
+      "sequence": 9,
+      "variant": "optimized-0.7.0",
+      "throughput_seeds_per_second": 3.657601,
+      "wall_seconds": 27.34,
+      "user_seconds": 25.7,
+      "system_seconds": 0.12,
+      "max_rss_kib": 5696,
+      "minor_page_faults": 7037,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 378,
+      "involuntary_context_switches": 8700
+    },
+    {
+      "sequence": 10,
+      "variant": "optimized-0.7.0",
+      "throughput_seeds_per_second": 3.694465,
+      "wall_seconds": 27.07,
+      "user_seconds": 25.66,
+      "system_seconds": 0.11,
+      "max_rss_kib": 5620,
+      "minor_page_faults": 6970,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 379,
+      "involuntary_context_switches": 8191
+    },
+    {
+      "sequence": 11,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 2.920451,
+      "wall_seconds": 34.24,
+      "user_seconds": 27.5,
+      "system_seconds": 5.93,
+      "max_rss_kib": 5920,
+      "minor_page_faults": 3320262,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 449,
+      "involuntary_context_switches": 6406
+    }
+  ],
+  "summary": {
+    "throughput": {
+      "baseline": {
+        "median": 2.648637,
+        "mad": 0.02228399999999975,
+        "p25": 2.63455775,
+        "p75": 2.67229675,
+        "minimum": 2.622841,
+        "maximum": 2.920451
+      },
+      "optimized-0.7.0": {
+        "median": 3.6679465,
+        "mad": 0.012929500000000038,
+        "p25": 3.659738,
+        "p75": 3.680031,
+        "minimum": 3.643891,
+        "maximum": 3.694465
+      }
+    },
+    "paired_change_percent": {
+      "median": 37.99626012180245,
+      "mad": 1.0093619576554183,
+      "p25": 37.4688720746932,
+      "p75": 39.193030250875104,
+      "minimum": 26.50323528797436,
+      "maximum": 39.54115515435204,
+      "bootstrap_95_percent_ci": [
+        31.968194086715165,
+        39.496515977559426
+      ]
+    }
+  }
+}

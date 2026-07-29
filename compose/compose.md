@@ -1,30 +1,75 @@
-# compose
-This folder contains Docker Compose configurations for running project services
-individually.
+# Docker Compose Files
 
-#### Variations
-- **compose.yaml**
-Runs only the `seedfinder` container. It is configured to connect to an
-individually managed PostgreSQL instance at `host.docker.internal:5432` using
-database `dsp`, user `postgres`, and password `rootpassword`. It uses Docker's
-built-in `bridge` network so `host-gateway` reaches PostgreSQL's published port
-without joining PostgreSQL's Compose network.
+Run all commands in this document from the repository root.
 
-- **compose.postgres.yaml**
-Runs PostgreSQL and PostgREST. PostgreSQL is available for individual connections from
-local tools or from `seedfinder` in `compose.yaml`. It publishes PostgreSQL on localhost
-port `5432`, creates database `dsp`, and persists data in `../data`. PostgREST is
-exposed on port `3000` and provides a RESTful API over the `public` schema.
+## Full Stack
 
-#### Usage
-- Start PostgreSQL + PostgREST:
-  `docker compose -f compose.postgres.yaml up -d`
+`compose/compose_full.yaml` uses this startup sequence:
 
-- Start seedfinder only:
-  `docker compose -f compose.yaml up -d`
+1. Docker starts PostgreSQL.
+2. Docker waits for the PostgreSQL health check to pass.
+3. The generator creates the schema.
+4. The generator writes the configured seeds.
+5. PostgREST starts after the generator exits with code `0`.
 
-- Connect locally (PostgreSQL):
-  `postgresql://postgres:rootpassword@localhost:5432/dsp`
+Set the PostgreSQL password:
 
-- PostgREST API:
-  `http://localhost:3000`
+```bash
+export POSTGRES_PASSWORD='replace-this-password'
+```
+
+Start the full stack:
+
+```bash
+docker compose -f compose/compose_full.yaml up -d --wait
+```
+
+The default range contains seeds from 0 to 99. The application programming
+interface (API) listens on `127.0.0.1:3000`.
+
+## PostgreSQL Only
+
+`compose/compose.postgres.yaml` starts PostgreSQL. PostgreSQL stores data in
+`data/`. PostgreSQL listens on `127.0.0.1:5432` by default.
+
+Set the PostgreSQL password:
+
+```bash
+export POSTGRES_PASSWORD='replace-this-password'
+```
+
+Start PostgreSQL:
+
+```bash
+docker compose -f compose/compose.postgres.yaml up -d --wait
+```
+
+Set `POSTGRES_PORT` to use a different host port.
+
+## Generator Only
+
+`compose/compose.yaml` starts one finite generator job. The generator connects
+to a PostgreSQL server on the Docker host.
+
+Set the PostgreSQL password:
+
+```bash
+export POSTGRES_PASSWORD='replace-this-password'
+```
+
+Start the generator:
+
+```bash
+docker compose -f compose/compose.yaml up
+```
+
+Set `START_SEED` and `END_SEED` before the command to select a range.
+
+## Stop Services
+
+```bash
+docker compose -f compose/compose_full.yaml down --remove-orphans
+```
+
+The `docker compose down` command does not remove the bind-mounted database
+files in `data/`.
