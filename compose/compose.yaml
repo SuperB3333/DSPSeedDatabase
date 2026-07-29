@@ -1,6 +1,6 @@
 services:
   seedfinder:
-    image: toti330/dsp_seed_finder:0.7.0
+    image: toti330/dsp_seed_finder:0.7.0@sha256:58d968aa4a6661b7b203a6716bd0de7c5a39763d688410b1d600d617513181ca
     container_name: seedfinder
     environment:
       START_SEED: ${START_SEED:-0}

@@ -187,6 +187,12 @@ The database files are in `data/`.
 
 The release image is `toti330/dsp_seed_finder:0.7.0`.
 
+The published image has this digest:
+
+```text
+sha256:58d968aa4a6661b7b203a6716bd0de7c5a39763d688410b1d600d617513181ca
+```
+
 Examine the remote image:
 
 ```bash
