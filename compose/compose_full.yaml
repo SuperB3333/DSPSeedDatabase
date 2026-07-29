@@ -1,39 +1,48 @@
 services:
   postgres:
-    image: postgres:16
+    image: postgres:16@sha256:33f923b05f64ca54ac4401c01126a6b92afe839a0aa0a52bc5aeb5cc958e5f20
     container_name: postgres
     environment:
       POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: rootpassword
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       POSTGRES_DB: dsp
     volumes:
       - "../data:/var/lib/postgresql/data"
     ports:
-      - "5432:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     restart: unless-stopped
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
       interval: 5s
       timeout: 5s
       retries: 5
   seedfinder:
-    image: toti330/seedfinder:0.6.0
+    image: toti330/dsp_seed_finder:0.7.0
     container_name: seedfinder
     environment:
-      END_SEED: 100000 # max is 10,000,000 (10m)
-      NO_TUI: 1 # Disable progress tui
+      START_SEED: ${START_SEED:-0}
+      END_SEED: ${END_SEED:-100}
+      NO_TUI: 1
       PG_USER: postgres
-      PG_PASS: rootpassword # Default values
+      PG_PASS: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD}
       PG_PORT: 5432
       PG_DBNAME: dsp
-      PG_NETLOC: host.docker.internal
-    restart: on-failure
+      PG_NETLOC: postgres
+      LOG_LEVEL: ${LOG_LEVEL:-info}
+    restart: "no"
     depends_on:
-      - postgres
+      postgres:
+        condition: service_healthy
   api:
-    image: superb3333/postgres_api
+    image: postgrest/postgrest:v12.2.12@sha256:5f4ce744539bbba786b4e24dbbd95bdb2a956dcf568c5374995a0ff4a68f5bd2
     container_name: api
     environment:
-      PG_DBNAME: dsp
-      PG_USER: api_user
-      PG_PASS: api_password
+      PGRST_DB_URI: postgres://api_user:api_password@postgres:5432/dsp
+      PGRST_DB_SCHEMA: public
+      PGRST_DB_ANON_ROLE: api_user
+    ports:
+      - "127.0.0.1:${API_PORT:-3000}:3000"
+    restart: unless-stopped
+    depends_on:
+      seedfinder:
+        condition: service_completed_successfully
