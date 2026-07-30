@@ -1,0 +1,19 @@
+{
+  "schema_version": 1,
+  "star_count": 64,
+  "resource_multiplier": 1.0,
+  "seed_sets": {
+    "calibration": {
+      "start_seed": 0,
+      "end_seed_exclusive": 1000
+    },
+    "held_out_validation": {
+      "start_seed": 1000000,
+      "end_seed_exclusive": 1001000
+    },
+    "performance": {
+      "start_seed": 2000000,
+      "end_seed_exclusive": 2000200
+    }
+  }
+}

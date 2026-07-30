@@ -1,0 +1,244 @@
+{
+  "schema_version": 1,
+  "build": {
+    "rust": "rustc 1.97.0 (2d8144b78 2026-07-07)",
+    "cargo": "cargo 1.97.0 (c980f4866 2026-06-30)",
+    "builder_image": "rust:1.97.0@sha256:b92b8c8574f8f3b207fcb0912fb3e2de4041580b5934d90312d53938c9a038a9",
+    "target": "x86_64-unknown-linux-musl",
+    "profile": "release",
+    "cargo_flags": ["--release", "--locked", "--target", "x86_64-unknown-linux-musl"]
+  },
+  "created_utc": "2026-07-30T13:48:42.967470+00:00",
+  "host": {
+    "platform": "Linux-6.17.0-1021-azure-x86_64-with-glibc2.39",
+    "processor_count": 2,
+    "processor": "Intel(R) Xeon(R) Platinum 8370C CPU @ 2.80GHz",
+    "physical_cores": 1,
+    "memory_bytes": 8270495744,
+    "docker": "29.6.1",
+    "cpu_set": "0"
+  },
+  "workload": {
+    "corpus_manifest": "benchmarks/vein_estimator_corpora.json",
+    "corpus_manifest_sha256": "6d8c5f92824ecdaa0ad0298c2f418ca38a59bb6cd23ff0b7c49d3b2c8c434a21",
+    "seed_set": "performance",
+    "start_seed": 2000000,
+    "end_seed": 2000200,
+    "seed_count": 200,
+    "workers": 1,
+    "writer_sinks": 1,
+    "channel_size": 64
+  },
+  "executables": {
+    "baseline": {
+      "path": "/tmp/opencode/dsp-vein-fast-0df70/inserter/target/x86_64-unknown-linux-musl/release/dsp_seed_finder",
+      "sha256": "2b078c659e56a4ffaa31e905170a3aa96c363294db28f87a2241db76e2d4ba5e",
+      "source_commit": "0df70ce645d4573ea135ea179a1261890851ec00",
+      "cargo_lock_sha256": "e141f9481732d58d1882448ae576074950cb8d1efb19b39a9f46ada2b49301d4",
+      "vein_mode": "historical midpoint estimate without terrain or placement"
+    },
+    "exact-current": {
+      "path": "/tmp/opencode/dsp-vein-exact-59232/inserter/target/x86_64-unknown-linux-musl/release/dsp_seed_finder",
+      "sha256": "17445fbe6f040420e974e197a7d86e841c03263079daeaaaeaa190113552e5fa",
+      "source_commit": "59232b78b5e8065b5697fe6bf6cd253c3a15f9e9",
+      "cargo_lock_sha256": "b8ad27ccee4fea907a956d954ec8f72f6ad82c5255da4e57aba610193610a047",
+      "vein_mode": "exact terrain and vein placement"
+    }
+  },
+  "results": [
+    {
+      "sequence": 0,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 248.582174,
+      "wall_seconds": 0.8,
+      "user_seconds": 0.69,
+      "system_seconds": 0.03,
+      "max_rss_kib": 2044,
+      "minor_page_faults": 12354,
+      "major_page_faults": 1,
+      "voluntary_context_switches": 50,
+      "involuntary_context_switches": 786
+    },
+    {
+      "sequence": 1,
+      "variant": "exact-current",
+      "throughput_seeds_per_second": 4.735595,
+      "wall_seconds": 42.23,
+      "user_seconds": 42.04,
+      "system_seconds": 0.08,
+      "max_rss_kib": 5656,
+      "minor_page_faults": 11789,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 626,
+      "involuntary_context_switches": 2898
+    },
+    {
+      "sequence": 2,
+      "variant": "exact-current",
+      "throughput_seeds_per_second": 4.746686,
+      "wall_seconds": 42.13,
+      "user_seconds": 41.98,
+      "system_seconds": 0.09,
+      "max_rss_kib": 5684,
+      "minor_page_faults": 11798,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 630,
+      "involuntary_context_switches": 2781
+    },
+    {
+      "sequence": 3,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 248.028807,
+      "wall_seconds": 0.8,
+      "user_seconds": 0.69,
+      "system_seconds": 0.05,
+      "max_rss_kib": 1980,
+      "minor_page_faults": 13683,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 55,
+      "involuntary_context_switches": 838
+    },
+    {
+      "sequence": 4,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 248.558563,
+      "wall_seconds": 0.8,
+      "user_seconds": 0.67,
+      "system_seconds": 0.04,
+      "max_rss_kib": 2044,
+      "minor_page_faults": 14145,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 50,
+      "involuntary_context_switches": 810
+    },
+    {
+      "sequence": 5,
+      "variant": "exact-current",
+      "throughput_seeds_per_second": 4.735332,
+      "wall_seconds": 42.23,
+      "user_seconds": 42.02,
+      "system_seconds": 0.09,
+      "max_rss_kib": 5684,
+      "minor_page_faults": 11821,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 626,
+      "involuntary_context_switches": 2994
+    },
+    {
+      "sequence": 6,
+      "variant": "exact-current",
+      "throughput_seeds_per_second": 4.735349,
+      "wall_seconds": 42.23,
+      "user_seconds": 41.99,
+      "system_seconds": 0.1,
+      "max_rss_kib": 5652,
+      "minor_page_faults": 11723,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 631,
+      "involuntary_context_switches": 2767
+    },
+    {
+      "sequence": 7,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 248.537383,
+      "wall_seconds": 0.8,
+      "user_seconds": 0.68,
+      "system_seconds": 0.04,
+      "max_rss_kib": 2044,
+      "minor_page_faults": 13640,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 44,
+      "involuntary_context_switches": 823
+    },
+    {
+      "sequence": 8,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 247.779547,
+      "wall_seconds": 0.8,
+      "user_seconds": 0.71,
+      "system_seconds": 0.03,
+      "max_rss_kib": 1980,
+      "minor_page_faults": 12524,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 47,
+      "involuntary_context_switches": 811
+    },
+    {
+      "sequence": 9,
+      "variant": "exact-current",
+      "throughput_seeds_per_second": 4.735753,
+      "wall_seconds": 42.23,
+      "user_seconds": 42.06,
+      "system_seconds": 0.08,
+      "max_rss_kib": 5740,
+      "minor_page_faults": 11823,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 627,
+      "involuntary_context_switches": 2568
+    },
+    {
+      "sequence": 10,
+      "variant": "exact-current",
+      "throughput_seeds_per_second": 4.735672,
+      "wall_seconds": 42.23,
+      "user_seconds": 42.0,
+      "system_seconds": 0.1,
+      "max_rss_kib": 5740,
+      "minor_page_faults": 11652,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 628,
+      "involuntary_context_switches": 2677
+    },
+    {
+      "sequence": 11,
+      "variant": "baseline",
+      "throughput_seeds_per_second": 248.292693,
+      "wall_seconds": 0.8,
+      "user_seconds": 0.71,
+      "system_seconds": 0.03,
+      "max_rss_kib": 1980,
+      "minor_page_faults": 13787,
+      "major_page_faults": 0,
+      "voluntary_context_switches": 52,
+      "involuntary_context_switches": 829
+    }
+  ],
+  "summary": {
+    "throughput": {
+      "baseline": {
+        "median": 248.415038,
+        "mad": 0.15533049999999093,
+        "p25": 248.0947785,
+        "p75": 248.55326799999997,
+        "minimum": 247.779547,
+        "maximum": 248.582174
+      },
+      "exact-current": {
+        "median": 4.7356335000000005,
+        "mad": 0.00020199999999981344,
+        "p25": 4.7354105,
+        "p75": 4.73573275,
+        "minimum": 4.735332,
+        "maximum": 4.746686
+      }
+    },
+    "paired_change_percent": {
+      "median": -98.09370971809756,
+      "mad": 0.0012106326215217678,
+      "p25": -98.09484047632034,
+      "p75": -98.08971886243113,
+      "minimum": -98.09495792727277,
+      "maximum": -98.0862360072554,
+      "bootstrap_95_percent_ci": [
+        -98.09492035071908,
+        -98.08747960301346
+      ]
+    },
+    "performance_requirement": {
+      "maximum_elapsed_time_overhead": 0.05,
+      "measured_elapsed_time_overhead": 51.45655897991262,
+      "minimum_candidate_throughput": 236.58575047619047,
+      "passed": false
+    }
+  }
+}
