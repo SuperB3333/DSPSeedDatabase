@@ -177,4 +177,48 @@ mod tests {
         assert_eq!(COPY_HEADER_FIELDS.len(), 8);
         assert_eq!(COPY_FOOTER, [255, 255]);
     }
+
+    #[test]
+    fn generated_planet_ores_use_binary_nulls() {
+        let (_, planets) = gen_formatted(0).unwrap();
+        let mut offset = 0;
+        let mut gas_rows = 0;
+        let mut rocky_nulls = 0;
+        let mut rocky_amounts = 0;
+
+        while offset < planets.len() {
+            let columns = i16::from_be_bytes(planets[offset..offset + 2].try_into().unwrap());
+            assert_eq!(columns, 26);
+            offset += 2;
+            let mut fields = Vec::with_capacity(columns as usize);
+            for _ in 0..columns {
+                let length = i32::from_be_bytes(planets[offset..offset + 4].try_into().unwrap());
+                offset += 4;
+                if length == -1 {
+                    fields.push(None);
+                } else {
+                    let end = offset + length as usize;
+                    fields.push(Some(&planets[offset..end]));
+                    offset = end;
+                }
+            }
+
+            let is_gas = fields[3].unwrap() == [1];
+            for ore in &fields[12..26] {
+                if is_gas {
+                    assert!(ore.is_none());
+                    gas_rows += 1;
+                } else if ore.is_none() {
+                    rocky_nulls += 1;
+                } else {
+                    assert_eq!(ore.unwrap().len(), 4);
+                    rocky_amounts += 1;
+                }
+            }
+        }
+
+        assert!(gas_rows > 0);
+        assert!(rocky_nulls > 0);
+        assert!(rocky_amounts > 0);
+    }
 }

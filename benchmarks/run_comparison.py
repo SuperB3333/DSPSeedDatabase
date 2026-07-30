@@ -163,6 +163,9 @@ def summarize(results: list[dict[str, object]], candidate_name: str) -> dict[str
     }
     baseline = by_variant["baseline"]
     candidate = by_variant[candidate_name]
+    baseline_median = statistics.median(baseline)
+    candidate_median = statistics.median(candidate)
+    maximum_elapsed_overhead = 0.05
     paired_changes = [
         (new / old - 1.0) * 100.0 for old, new in zip(baseline, candidate, strict=True)
     ]
@@ -174,6 +177,14 @@ def summarize(results: list[dict[str, object]], candidate_name: str) -> dict[str
         "paired_change_percent": {
             **describe(paired_changes),
             "bootstrap_95_percent_ci": bootstrap_ci(paired_changes),
+        },
+        "performance_requirement": {
+            "maximum_elapsed_time_overhead": maximum_elapsed_overhead,
+            "measured_elapsed_time_overhead": baseline_median / candidate_median - 1.0,
+            "minimum_candidate_throughput": baseline_median
+            / (1.0 + maximum_elapsed_overhead),
+            "passed": candidate_median
+            >= baseline_median / (1.0 + maximum_elapsed_overhead),
         },
     }
 
