@@ -1,0 +1,83 @@
+{
+  "schema_version": 1,
+  "created_utc": "2026-07-31T11:30:22+00:00",
+  "image": {
+    "reference": "docker.io/toti330/dsp_seed_finder:0.8.0-estimate-only",
+    "digest": "sha256:ac619c981d6df387b02d8928d741a1db906f7e22e31a6a9e43be0519344a4792",
+    "binary_rootfs_layer": "sha256:a02019e60bdde18a35b97d8109579b5ec03aed53a517c3a92848147f4a108aa9",
+    "description": "Fast estimate-only DSP seed generator. Stores one midpoint ore estimate per resource and omits min/max columns for compact high-throughput benchmark datasets."
+  },
+  "source": {
+    "base_commit": "0df70ce645d4573ea135ea179a1261890851ec00",
+    "base_summary": "Fixed lots of small warnings like unnecessary cast",
+    "generation_mode": "EstimatedVein midpoint estimates with use_actual_veins=false",
+    "runtime_patches": [
+      "Emit one estimate value per ore instead of min, max, and estimate triples.",
+      "Remove min_* and max_* schema and COPY columns.",
+      "Wait through writer input lulls instead of treating them as fatal."
+    ]
+  },
+  "host": {
+    "operating_system": "Ubuntu 24.04.4 LTS",
+    "kernel": "Linux 6.17.0-1021-azure",
+    "architecture": "x86_64",
+    "logical_processors": 2,
+    "memory_bytes": 8270495744,
+    "docker_version": "29.6.1",
+    "target": "x86_64-unknown-linux-musl"
+  },
+  "results": [
+    {
+      "name": "generation-only",
+      "start_seed": 0,
+      "end_seed": 10000,
+      "seed_count": 10000,
+      "workers": 2,
+      "writer_sinks": 1,
+      "channel_size": 2000,
+      "commit_count": 1000,
+      "database_writes": false,
+      "reported_elapsed_seconds": 40,
+      "throughput_seeds_per_second": 246.741488
+    },
+    {
+      "name": "postgresql-write",
+      "start_seed": 0,
+      "end_seed": 10000,
+      "seed_count": 10000,
+      "workers": 2,
+      "writer_sinks": 1,
+      "channel_size": 2000,
+      "commit_count": 1000,
+      "database_writes": true,
+      "reported_elapsed_seconds": 56,
+      "throughput_seeds_per_second": 178.220602
+    },
+    {
+      "name": "postgresql-write-two-writers",
+      "start_seed": 10000,
+      "end_seed": 20000,
+      "seed_count": 10000,
+      "workers": 2,
+      "writer_sinks": 2,
+      "channel_size": 4000,
+      "commit_count": 1000,
+      "database_writes": true,
+      "reported_elapsed_seconds": 55,
+      "throughput_seeds_per_second": 178.659582
+    }
+  ],
+  "storage_sample": {
+    "seed_count": 10000,
+    "star_rows": 640000,
+    "planet_rows": 2441744,
+    "stars_total_relation_bytes": 95141888,
+    "planets_total_relation_bytes": 344743936,
+    "table_and_index_bytes_per_seed": 43988.5824
+  },
+  "notes": [
+    "The release image is a metadata-only wrapper around the measured local image; both reference the same sole RootFS layer.",
+    "Logs, checkpoints, and the terminal user interface were disabled for all benchmark runs.",
+    "The generator deliberately trades exact terrain and vein placement for historical midpoint estimates."
+  ]
+}
